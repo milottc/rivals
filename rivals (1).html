@@ -2,689 +2,767 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Rivals - Babylon.js</title>
+<title>Rivals</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html, body { margin:0; height:100%; overflow:hidden; background:#cfe0f5; font-family:'Segoe UI',system-ui,sans-serif; color:#fff; user-select:none; }
-  #c { width:100%; height:100%; display:block; outline:none; }
-  #hud { position:fixed; inset:0; pointer-events:none; display:none; }
+* { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; overflow:hidden; background:#000; font-family:'Segoe UI',system-ui,sans-serif; color:#fff; user-select:none; }
+#c { width:100%; height:100%; display:block; outline:none; }
 
-  /* top bar: yellow team / timer / purple team */
-  #topbar { position:fixed; top:8px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:10px; }
-  .team { height:48px; min-width:150px; display:flex; align-items:center; justify-content:flex-end; gap:12px; padding:0 18px; font-size:30px; font-weight:900; border-radius:4px; box-shadow:0 3px 8px rgba(0,0,0,.3); }
-  .team .ic { font-size:22px; opacity:.9; }
-  #tY { background:linear-gradient(#f6d23a,#d9a800); color:#fff; text-shadow:0 2px 0 rgba(0,0,0,.35); }
-  #tP { background:linear-gradient(#7c5cf0,#4a2fc4); justify-content:flex-start; flex-direction:row-reverse; }
-  #timer { height:48px; min-width:100px; display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(#3a3d4a,#23252f); font-size:26px; font-weight:800; border-radius:4px; box-shadow:0 3px 8px rgba(0,0,0,.3); }
+/* ── LOBBY ── */
+#lobby {
+  position:fixed; inset:0;
+  background:radial-gradient(ellipse at 50% 80%, #1a0a3a 0%, #08080f 70%);
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+}
+#lobby-canvas { width:100%; height:100%; position:absolute; top:0; left:0; }
+#lobby-ui { position:relative; z-index:2; width:100%; display:flex; flex-direction:column; align-items:center; }
+#lobby-logo { margin-top:48px; font-size:clamp(72px,12vw,160px); font-weight:900; font-style:italic;
+  color:#ffd23f; -webkit-text-stroke:5px #3b1fa8;
+  text-shadow:6px 6px 0 #6a3df0, 12px 12px 0 rgba(0,0,0,.5), 0 0 60px #8855ff;
+  transform:rotate(-3deg); line-height:1; }
+#lobby-sub { font-size:18px; letter-spacing:10px; font-weight:700; margin-top:10px; opacity:.8; text-shadow:0 2px 6px #000; }
+#play-btn {
+  margin-top:40px; font:900 36px 'Segoe UI',sans-serif; letter-spacing:6px; padding:16px 90px;
+  border:none; border-radius:10px; cursor:pointer;
+  background:linear-gradient(#7dff8a,#1fd43c); color:#fff; text-shadow:0 3px 0 #0b7a20;
+  box-shadow:0 8px 0 #0b7a20, 0 0 40px #1fd43c88; transition:transform .12s,box-shadow .12s;
+}
+#play-btn:hover { transform:translateY(-4px); box-shadow:0 12px 0 #0b7a20, 0 0 60px #1fd43c; }
+#lobby-nav { margin-top:36px; display:flex; gap:16px; flex-wrap:wrap; justify-content:center; }
+.lnav { padding:10px 26px; border-radius:8px; font-weight:800; font-size:15px; letter-spacing:2px;
+  background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.18); cursor:pointer;
+  transition:background .15s; }
+.lnav:hover { background:rgba(255,255,255,.18); }
+.lnav.active { background:rgba(110,80,255,.45); border-color:#9970ff; }
+#lobby-hint { margin-top:22px; font-size:13px; opacity:.6; letter-spacing:1px; }
 
-  /* crosshair "( )" like the reference */
-  #crosshair { position:fixed; left:50%; top:50%; width:44px; height:34px; margin:-17px 0 0 -22px; }
-  #crosshair::before, #crosshair::after { content:''; position:absolute; top:0; width:10px; height:30px; border:3px solid rgba(255,255,255,.95); border-radius:50%; box-shadow:0 0 2px rgba(0,0,0,.6); }
-  #crosshair::before { left:0; border-right-color:transparent; border-top-color:transparent; border-bottom-color:transparent; }
-  #crosshair::after { right:0; border-left-color:transparent; border-top-color:transparent; border-bottom-color:transparent; }
-  #crosshair i { position:absolute; left:20px; top:14px; width:4px; height:4px; background:#fff; border-radius:50%; box-shadow:0 0 2px #000; }
+/* ── HUD ── */
+#hud { position:fixed; inset:0; pointer-events:none; display:none; }
 
-  #hit { position:fixed; left:50%; top:50%; width:40px; height:40px; margin:-20px 0 0 -20px; opacity:0; transition:opacity .08s; }
-  #hit::before, #hit::after { content:''; position:absolute; left:18px; top:-4px; width:4px; height:48px; background:#fff; transform:rotate(45deg); box-shadow:0 0 4px #000; }
-  #hit::after { transform:rotate(-45deg); }
-  #hit.head::before, #hit.head::after { background:#ff3b3b; }
-  #hit.kill::before, #hit.kill::after { background:#ffd23f; }
+/* top */
+#topbar { position:fixed; top:0; left:50%; transform:translateX(-50%); display:flex; align-items:stretch; gap:0; }
+.tscore { min-width:140px; display:flex; align-items:center; gap:10px; padding:8px 20px; font-size:28px; font-weight:900; }
+#ts-you { background:linear-gradient(135deg,#f6c800,#d49000); border-radius:0 0 0 8px; justify-content:flex-start; }
+#ts-bot { background:linear-gradient(135deg,#7c50f2,#4a22d6); border-radius:0 0 8px 0; justify-content:flex-end; flex-direction:row-reverse; }
+#ttimer { background:linear-gradient(#2a2c3e,#1a1b28); min-width:100px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4px 12px; font-size:22px; font-weight:900; }
+#ttimer small { font-size:10px; letter-spacing:2px; opacity:.7; }
+.tdot { width:28px; height:28px; border-radius:50%; background:#fff3; border:3px solid #fff6; display:flex; align-items:center; justify-content:center; font-size:16px; }
 
-  #killfeed { position:fixed; top:14px; right:14px; font-size:14px; font-weight:800; text-align:right; }
-  #killfeed div { background:linear-gradient(90deg,#7c5cf0,#c9a400); padding:5px 14px; margin-bottom:4px; border-radius:4px; text-shadow:0 1px 3px #000; }
-  #elim { position:fixed; top:72%; width:100%; text-align:center; font-size:22px; font-weight:800; text-shadow:0 2px 4px #000; opacity:0; transition:opacity .2s; }
-  #elim b { color:#a98bff; }
+/* health */
+#hpbar-wrap { position:fixed; left:16px; bottom:46px; display:flex; align-items:center; gap:10px; }
+#hpicon { font-size:18px; background:rgba(0,0,0,.5); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:2px solid #3da; }
+#hpbar { width:240px; height:20px; background:rgba(10,20,10,.7); border:2px solid #000; border-radius:10px; overflow:hidden; }
+#hpbar > div { height:100%; background:linear-gradient(#7eff7a,#25c43a); transition:width .12s; width:100%; }
+#hpnum { position:fixed; left:16px; bottom:20px; font-size:14px; font-weight:800; text-shadow:0 1px 4px #000; opacity:.9; }
 
-  /* bottom-left: health */
-  #spec { position:fixed; left:0; bottom:44px; background:rgba(20,22,30,.85); padding:4px 14px 4px 10px; font-weight:800; font-size:15px; border-radius:0 6px 6px 0; }
-  #pbar { position:fixed; left:10px; bottom:10px; width:290px; height:26px; background:rgba(15,20,15,.85); border:2px solid #000; border-radius:14px; overflow:hidden; }
-  #pbar > div { height:100%; background:linear-gradient(#7de05a,#3da12a); transition:width .12s; }
-  #hpnum { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:15px; text-shadow:0 1px 3px #000; }
+/* loadout slots bottom-right */
+#loadout { position:fixed; right:20px; bottom:10px; display:flex; gap:8px; align-items:flex-end; }
+.lslot { width:62px; height:62px; border-radius:8px; background:rgba(20,22,32,.85); border:2px solid rgba(255,255,255,.2);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:22px; gap:2px; cursor:pointer; transition:border-color .1s; }
+.lslot small { font-size:9px; letter-spacing:1px; opacity:.7; font-weight:700; }
+.lslot.sel { border-color:#f6c800; box-shadow:0 0 10px #f6c80088; }
+#ammo-big { position:fixed; right:100px; bottom:76px; font-size:52px; font-weight:900; text-shadow:0 3px 8px #000; line-height:1; }
+#ammo-res { position:fixed; right:100px; bottom:60px; font-size:18px; font-weight:700; opacity:.8; text-shadow:0 2px 4px #000; }
+#wlabel { position:fixed; right:20px; bottom:80px; font-size:18px; font-weight:800; text-shadow:0 2px 4px #000; text-align:right; }
 
-  /* bottom-right: ammo + weapon + slots */
-  #ammo { position:fixed; right:26px; bottom:92px; font-weight:900; text-shadow:0 3px 8px #000; display:flex; align-items:baseline; gap:6px; }
-  #ammo .big { font-size:56px; line-height:1; }
-  #ammo .small { font-size:18px; opacity:.8; }
-  #wname { position:fixed; right:26px; bottom:66px; font-size:22px; font-weight:800; text-shadow:0 2px 4px #000; }
-  #weapons { position:fixed; right:20px; bottom:10px; display:flex; gap:6px; }
-  #weapons .slot { width:56px; height:48px; border-radius:6px; background:rgba(30,32,42,.85); border:2px solid transparent; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:13px; opacity:.8; }
-  #weapons .slot.sel { border-color:#f6d23a; opacity:1; }
-  #hint { position:fixed; left:50%; bottom:8px; transform:translateX(-50%); background:rgba(20,22,30,.85); padding:6px 14px; border-radius:8px; font-size:11px; font-weight:700; opacity:.9; white-space:nowrap; }
-  #hint b { background:#444a5c; padding:1px 5px; border-radius:3px; margin:0 4px 0 10px; }
+/* crosshair */
+#xhair { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:30px; height:30px; }
+#xhair::before,#xhair::after { content:''; position:absolute; background:rgba(255,255,255,.95); box-shadow:0 0 0 1px rgba(0,0,0,.6); }
+#xhair::before { left:14px; top:0; width:2px; height:30px; }
+#xhair::after { top:14px; left:0; height:2px; width:30px; }
+#xhair i { position:absolute; left:12px; top:12px; width:6px; height:6px; border-radius:50%; background:#fff; }
 
-  #banner { position:fixed; top:24%; width:100%; display:flex; justify-content:center; opacity:0; transition:opacity .2s; }
-  .bn { min-width:240px; text-align:center; padding:6px 28px 10px; border:3px solid #fff; border-radius:6px; font-weight:900; font-size:44px; line-height:1; background:linear-gradient(#3a3d52,#1d2030); box-shadow:0 6px 16px rgba(0,0,0,.4); }
-  .bn small { display:block; font-size:14px; letter-spacing:3px; opacity:.9; margin-bottom:3px; }
-  .bn.g { background:linear-gradient(#3fcf5a,#12802c); } .bn.r { background:linear-gradient(#ff5a5a,#a01818); }
-  #hurt { position:fixed; inset:0; box-shadow:inset 0 0 160px 40px rgba(255,0,0,.7); opacity:0; transition:opacity .25s; }
-  #scope { position:fixed; inset:0; display:none; background:radial-gradient(circle at center, transparent 0, transparent 27vmin, #000 27.4vmin); }
-  #scope::before { content:''; position:absolute; left:0; right:0; top:50%; height:1px; background:#000; }
-  #scope::after { content:''; position:absolute; top:0; bottom:0; left:50%; width:1px; background:#000; }
+#hitmark { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); opacity:0; transition:opacity .07s; font-size:28px; }
 
-  #overlay { position:fixed; inset:0; background:linear-gradient(90deg, rgba(20,10,60,.55), rgba(20,10,60,0) 65%); display:flex; flex-direction:column; align-items:flex-start; justify-content:center; padding-left:7vw; cursor:pointer; }
-  #overlay h1 { font-size:clamp(64px,11vw,150px); margin:0; line-height:.9; font-style:italic; font-weight:900; letter-spacing:2px; color:#ffd23f; -webkit-text-stroke:4px #3b1fa8; text-shadow:6px 6px 0 #6a3df0, 10px 10px 0 rgba(0,0,0,.35); transform:rotate(-4deg); }
-  #overlay .sub { font-size:22px; font-weight:800; letter-spacing:8px; margin:14px 0 30px 6px; text-shadow:0 2px 6px #000; }
-  #overlay button { font:900 40px 'Segoe UI',system-ui,sans-serif; letter-spacing:4px; padding:14px 70px; border:4px solid #000; border-radius:10px; background:linear-gradient(#5dff7a,#1fbf45); color:#fff; text-shadow:0 3px 0 #0b7a27; box-shadow:0 8px 0 #0b7a27; cursor:pointer; transition:transform .1s; }
-  #overlay button:hover { transform:translateY(-3px) scale(1.04); }
-  #overlay p { line-height:1.7; margin:22px 0 0 6px; font-size:15px; text-shadow:0 2px 4px #000; max-width:460px; }
+/* killfeed */
+#kf { position:fixed; top:70px; right:16px; font-size:14px; font-weight:800; text-align:right; }
+#kf div { margin-bottom:4px; padding:4px 12px; border-radius:4px; background:rgba(20,22,35,.75); animation:kfin .2s; }
+@keyframes kfin { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:none} }
+
+/* elim text */
+#elim { position:fixed; bottom:30%; width:100%; text-align:center; font-size:20px; font-weight:900; opacity:0; transition:opacity .2s; text-shadow:0 2px 6px #000; }
+#elim b { color:#a98bff; }
+
+/* banner */
+#banner { position:fixed; top:26%; width:100%; display:flex; justify-content:center; opacity:0; transition:opacity .2s; }
+.bn { padding:8px 40px 14px; border-radius:8px; text-align:center; min-width:220px;
+  font-size:42px; font-weight:900; line-height:1.1;
+  background:linear-gradient(#232535,#151622); border:3px solid rgba(255,255,255,.2);
+  box-shadow:0 8px 24px rgba(0,0,0,.5); }
+.bn small { display:block; font-size:12px; letter-spacing:4px; opacity:.8; margin-bottom:2px; }
+.bn.g { background:linear-gradient(#2a7a3a,#183a1f); border-color:#4aff6a; }
+.bn.r { background:linear-gradient(#7a2a2a,#3a1818); border-color:#ff6a4a; }
+
+#hurt { position:fixed; inset:0; box-shadow:inset 0 0 180px 50px rgba(255,0,0,.75); opacity:0; transition:opacity .2s; }
+#scope { position:fixed; inset:0; display:none; }
+#scope::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at center, transparent 26vmin, #000 26.4vmin); }
+#scope::after { content:''; position:absolute; left:0;right:0; top:50%; height:1px; background:#000; }
+#scope i { position:absolute; top:0;bottom:0; left:50%; width:1px; background:#000; }
+
+.panel{display:none;flex-direction:column;gap:8px;margin-top:18px;width:min(520px,92vw);padding:14px 16px;background:rgba(15,12,40,.88);border:2px solid #9970ff;border-radius:10px;font-size:13px;font-weight:700}
+.panel.on{display:flex}
+.panel input,.panel button{font:600 13px 'Segoe UI',sans-serif;padding:8px 10px;border-radius:6px;border:1px solid #6a3df0;background:#0d0a24;color:#fff;user-select:text;min-width:0}
+.panel button{background:#6a3df0;cursor:pointer;white-space:nowrap}
+.panel button:hover{background:#8355ff}
+.panel .row{display:flex;gap:8px}.panel .row input{flex:1}
+#mp-msg{font-weight:600;opacity:.85;line-height:1.4}
+#mpstat{position:fixed;left:16px;top:12px;font-size:13px;font-weight:800;text-shadow:0 1px 4px #000}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 
+<div id="lobby">
+  <canvas id="lobby-canvas"></canvas>
+  <div id="lobby-ui">
+    <div id="lobby-logo">RIVALS</div>
+    <div id="lobby-sub">FIRST PERSON SHOOTER</div>
+    <button id="play-btn">▶  PLAY</button>
+    <div id="lobby-nav">
+      <div class="lnav active">⚔ WEAPONS</div>
+      <div class="lnav">📋 TASKS</div>
+      <div class="lnav">🛒 SHOP</div>
+      <div class="lnav">🏆 CAREER</div>
+      <div class="lnav" data-t="mp">🌐 MULTIPLAYER</div>
+      <div class="lnav" data-t="set">⚙ SETTINGS</div>
+    </div>
+    <div class="panel" data-t="mp">
+      <span>Online 1v1 via JSONBin: both players create a code, swap codes, press Connect, then PLAY.</span>
+      <input id="mp-key" type="password" placeholder="Your JSONBin X-Master-Key (free at jsonbin.io)">
+      <div class="row"><input id="mp-my" readonly placeholder="Your code (click to copy)"><button id="mp-make">Create code</button></div>
+      <div class="row"><input id="mp-opp" placeholder="Rival's code"><button id="mp-go">Connect</button><button id="mp-off">Solo</button></div>
+      <div id="mp-msg">Free JSONBin has a request cap, so a session lasts roughly 15-25 minutes.</div>
+    </div>
+    <div class="panel" data-t="set"><label>Mouse sensitivity <input id="sens" type="range" min=".3" max="2.5" step=".1" value="1"></label></div>
+    <div id="lobby-hint">Click PLAY then click to lock mouse · Esc to pause</div>
+  </div>
+</div>
+
 <div id="hud">
   <div id="topbar">
-    <div class="team" id="tY"><span class="ic">&#9760;</span><span id="sY">0</span></div>
-    <div id="timer"><span>&#8987;</span><span id="tt">1:30</span></div>
-    <div class="team" id="tP"><span class="ic">&#9760;</span><span id="sP">0</span></div>
+    <div class="tscore" id="ts-you"><div class="tdot">☠</div><span id="sy">0</span></div>
+    <div id="ttimer"><small>TIME</small><span id="ttime">1:30</span></div>
+    <div class="tscore" id="ts-bot"><div class="tdot">☠</div><span id="sb">0</span></div>
   </div>
-  <div id="killfeed"></div>
+  <div id="mpstat"></div>
+  <div id="kf"></div>
   <div id="elim"></div>
-  <div id="spec">&#128065; 1</div>
-  <div id="pbar"><div style="width:100%"></div><div id="hpnum" style="position:absolute;background:none;height:auto">100</div></div>
-  <div id="ammo"><span class="big">30</span><span class="small">90</span></div>
-  <div id="wname">Assault Rifle</div>
-  <div id="weapons"></div>
-  <div id="hint"><b>Tab</b>Scoreboard <b>F</b>Quick Melee <b>Q</b>Quick Utility</div>
-  <div id="crosshair"><i></i></div>
-  <div id="hit"></div>
-  <div id="scope"></div>
+  <div id="hpbar-wrap">
+    <div id="hpicon">♥</div>
+    <div id="hpbar"><div></div></div>
+  </div>
+  <div id="hpnum">100 ♥</div>
+  <div id="wlabel">Assault Rifle</div>
+  <div id="ammo-big">30</div>
+  <div id="ammo-res">/ 90</div>
+  <div id="loadout">
+    <div class="lslot sel" id="ls0">🔫<small>PRIMARY</small></div>
+    <div class="lslot" id="ls1">🔫<small>SECONDARY</small></div>
+    <div class="lslot" id="ls2">🗡<small>MELEE</small></div>
+    <div class="lslot" id="ls3">💣<small>UTILITY</small></div>
+  </div>
+  <div id="xhair"><i></i></div>
+  <div id="hitmark"></div>
   <div id="banner"></div>
   <div id="hurt"></div>
+  <div id="scope"><i></i></div>
 </div>
 
-<div id="overlay">
-  <h1>RIVALS</h1>
-  <div class="sub">1V1 ARENA DUELS</div>
-  <button id="play">PLAY</button>
-  <p>First to 5 rounds wins.<br>WASD move · Shift sprint · Space jump · Mouse aim · Click shoot · Right-click aim down sights · 1/2/3 or wheel switch weapon · R reload · Esc pause</p>
-</div>
-
-<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/babylonjs@6.49.0/babylon.js"></script>
 <script>
 (() => {
-  const V3 = BABYLON.Vector3, C3 = BABYLON.Color3, C4 = BABYLON.Color4;
-  const $ = id => document.getElementById(id);
+const V3 = BABYLON.Vector3, C3 = BABYLON.Color3, C4 = BABYLON.Color4;
+const $ = id => document.getElementById(id);
 
-  // ---------- CONFIG (tweak here) ----------
-  const CFG = {
-    roundsToWin: 5,
-    S: 60,
-    player: { hp: 100, speed: 8, sprint: 12, jump: 8.5, gravity: 26, eye: 1.7 },
-    bot:    { hp: 100, speed: 5.2, fireDelay: 0.55, accuracy: 0.33, damage: 10 }
-  };
-  const WEAPONS = [
-    { name:'Assault Rifle', tag:'AR', dmg:14, head:2,   delay:0.095, mag:30, reserve:90, reload:1.4, auto:true,  pellets:1, hip:0.02, ads:0.006,  recoil:0.006, zoom:0.95 },
-    { name:'Shotgun',       tag:'SG', dmg:11, head:1.5, delay:0.75,  mag:6,  reserve:24, reload:1.8, auto:false, pellets:9, hip:0.06, ads:0.04,   recoil:0.04,  zoom:1.05 },
-    { name:'Sniper',        tag:'SN', dmg:80, head:2,   delay:1.1,   mag:4,  reserve:12, reload:2.0, auto:false, pellets:1, hip:0.05, ads:0.0015, recoil:0.05,  zoom:0.3  }
-  ];
-
-  // ---------- Engine / scene ----------
-  const canvas = $('c');
-  const engine = new BABYLON.Engine(canvas, true);
-  const scene = new BABYLON.Scene(engine);
-  scene.clearColor = new C4(0.86, 0.9, 0.97, 1);
-  scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-  scene.fogColor = new C3(0.86, 0.89, 0.96);
-  scene.fogDensity = 0.0035;
-
-  // flat, hazy lighting like the reference
-  const hemi = new BABYLON.HemisphericLight('h', new V3(0, 1, 0), scene);
-  hemi.intensity = 0.78; hemi.diffuse = new C3(1, 1, 1); hemi.groundColor = new C3(0.62, 0.64, 0.8);
-  const sun = new BABYLON.DirectionalLight('s', new V3(-0.45, -1, -0.35), scene);
-  sun.position = new V3(30, 60, 25); sun.intensity = 0.3;
-  const shadowGen = new BABYLON.ShadowGenerator(2048, sun);
-  shadowGen.usePercentageCloserFiltering = true;
-  shadowGen.filteringQuality = BABYLON.ShadowGenerator.QUALITY_MEDIUM;
-  shadowGen.bias = 0.0006; shadowGen.normalBias = 0.02; shadowGen.darkness = 0.55;
-
-  // ---------- Sky + cloud sea (island floats in the sky) ----------
-  const skyTex = new BABYLON.DynamicTexture('sky', { width: 1024, height: 512 }, scene);
-  { const c = skyTex.getContext(); const g = c.createLinearGradient(0, 0, 0, 512);
-    g.addColorStop(0, '#1666e0'); g.addColorStop(.25, '#3f93f5'); g.addColorStop(.42, '#9ccaff'); g.addColorStop(.5, '#e4eeff'); g.addColorStop(1, '#ffffff');
-    c.fillStyle = g; c.fillRect(0, 0, 1024, 512);
-    const cols = ['255,255,255', '246,222,240', '226,214,250'];
-    for (let i = 0; i < 90; i++) {
-      const x = Math.random() * 1024, y = 150 + Math.random() * 150, r = 40 + Math.random() * 110;
-      const rg = c.createRadialGradient(x, y, 0, x, y, r), col = cols[i % 3];
-      rg.addColorStop(0, `rgba(${col},.7)`); rg.addColorStop(1, `rgba(${col},0)`);
-      c.fillStyle = rg; c.fillRect(x - r, y - r, r * 2, r * 2);
-    }
-    skyTex.update(); }
-  const sky = BABYLON.MeshBuilder.CreateSphere('sky', { diameter: 900, segments: 16 }, scene);
-  const skyM = new BABYLON.StandardMaterial('skyM', scene);
-  skyM.backFaceCulling = false; skyM.disableLighting = true; skyM.emissiveTexture = skyTex;
-  skyM.diffuseColor = C3.Black(); skyM.specularColor = C3.Black(); skyM.fogEnabled = false;
-  sky.material = skyM; sky.infiniteDistance = true; sky.isPickable = false;
-
-  const seaTex = new BABYLON.DynamicTexture('sea', { width: 1024, height: 1024 }, scene);
-  { const c = seaTex.getContext(); c.fillStyle = '#eef0fa'; c.fillRect(0, 0, 1024, 1024);
-    const cols = ['255,255,255', '240,222,245', '210,225,255', '255,236,240'];
-    for (let i = 0; i < 220; i++) {
-      const x = Math.random() * 1024, y = Math.random() * 1024, r = 40 + Math.random() * 120;
-      const rg = c.createRadialGradient(x, y, 0, x, y, r), col = cols[i % 4];
-      rg.addColorStop(0, `rgba(${col},.55)`); rg.addColorStop(1, `rgba(${col},0)`);
-      c.fillStyle = rg; c.fillRect(x - r, y - r, r * 2, r * 2);
-    }
-    seaTex.update(); }
-  const sea = BABYLON.MeshBuilder.CreateGround('sea', { width: 1200, height: 1200 }, scene);
-  sea.position.y = -30; sea.isPickable = false;
-  const seaM = new BABYLON.StandardMaterial('seaM', scene);
-  seaM.disableLighting = true; seaM.emissiveTexture = seaTex; seaM.emissiveTexture.uScale = 3; seaM.emissiveTexture.vScale = 3;
-  seaM.diffuseColor = C3.Black(); seaM.specularColor = C3.Black(); seaM.fogEnabled = false;
-  sea.material = seaM;
-
-  // ---------- Materials ----------
-  // panel texture: pale blocks with thin seams and small "+" joints, like the reference
-  function panelTexture(base, line, cross, cells = 4) {
-    const size = 512, t = new BABYLON.DynamicTexture('pt', size, scene), c = t.getContext(), cell = size / cells;
-    c.fillStyle = base; c.fillRect(0, 0, size, size);
-    for (let i = 0; i < cells; i++) for (let j = 0; j < cells; j++) {
-      c.fillStyle = `rgba(80,90,140,${0.018 * ((i * 5 + j * 3) % 4)})`; c.fillRect(i * cell, j * cell, cell, cell);
-    }
-    c.strokeStyle = line; c.lineWidth = 3;
-    for (let i = 0; i <= cells; i++) {
-      const p = i * cell;
-      c.beginPath(); c.moveTo(p, 0); c.lineTo(p, size); c.stroke();
-      c.beginPath(); c.moveTo(0, p); c.lineTo(size, p); c.stroke();
-    }
-    c.fillStyle = cross;
-    for (let i = 0; i <= cells; i++) for (let j = 0; j <= cells; j++) {
-      const x = i * cell, y = j * cell; c.fillRect(x - 1.5, y - 9, 3, 18); c.fillRect(x - 9, y - 1.5, 18, 3);
-    }
-    t.update(); t.anisotropicFilteringLevel = 8; return t;
-  }
-  const texMat = (base, line, cross) => {
-    const m = new BABYLON.StandardMaterial('tm', scene);
-    m.diffuseTexture = panelTexture(base, line, cross); m.specularColor = new C3(.05, .05, .06);
-    m.emissiveColor = new C3(.06, .06, .08); return m;
-  };
-  const plain = (r, g, b, spec = .08, power = 32) => {
-    const m = new BABYLON.StandardMaterial('m', scene);
-    m.diffuseColor = new C3(r, g, b); m.specularColor = new C3(spec, spec, spec); m.specularPower = power; return m;
-  };
-  const gloss = (r, g, b) => plain(r, g, b, .7, 80);
-  const mats = {
-    w: texMat('#d9dbe8', '#b4b8ce', '#9ca2bd'),
-    g: texMat('#c7cadc', '#a5aac4', '#8d93b0'),
-    l: texMat('#e6e8f2', '#c4c8da', '#aab0c8'),
-    o: plain(.9, .5, .3)
-  };
-  // blue tarp curtain with wavy folds
-  const tarpTex = new BABYLON.DynamicTexture('tarp', 256, scene);
-  { const c = tarpTex.getContext();
-    for (let y = 0; y < 256; y++) { const s = .5 + .5 * Math.sin(y * .28); c.fillStyle = `rgb(${20 + 30 * s | 0},${90 + 55 * s | 0},${215 + 25 * s | 0})`; c.fillRect(0, y, 256, 1); }
-    tarpTex.update(); }
-  mats.blue = new BABYLON.StandardMaterial('tarp', scene);
-  mats.blue.diffuseTexture = tarpTex; mats.blue.emissiveColor = new C3(.05, .12, .3); mats.blue.specularColor = new C3(.1, .1, .15);
-
-  // world-space UVs so panel seams stay a constant size on every block
-  function worldUV(m, tile = 8) {
-    const P = m.getVerticesData(BABYLON.VertexBuffer.PositionKind), N = m.getVerticesData(BABYLON.VertexBuffer.NormalKind), uv = [];
-    const ox = m.position.x, oy = m.position.y, oz = m.position.z;
-    for (let i = 0; i < P.length; i += 3) {
-      const x = P[i] + ox, y = P[i + 1] + oy, z = P[i + 2] + oz;
-      const ax = Math.abs(N[i]), ay = Math.abs(N[i + 1]), az = Math.abs(N[i + 2]);
-      let u, v;
-      if (ay >= ax && ay >= az) { u = x; v = z; } else if (ax >= az) { u = z; v = y; } else { u = x; v = y; }
-      uv.push(u / tile, v / tile);
-    }
-    m.updateVerticesData(BABYLON.VertexBuffer.UVKind, uv);
-  }
-  const solid = (m, cast = true) => {
-    m.checkCollisions = true; m.isPickable = true; m.metadata = { solid: true }; m.receiveShadows = true;
-    if (cast) shadowGen.addShadowCaster(m);
-    return m;
-  };
-  function block(x, z, w, h, d, mk = 'w', y0 = 0) {
-    const b = BABYLON.MeshBuilder.CreateBox('b', { width: w, height: h, depth: d, updatable: true }, scene);
-    b.position.set(x, y0 + h / 2, z); worldUV(b); b.material = mats[mk]; solid(b); return b;
-  }
-  function tarp(x, z, w, h, d) {
-    const b = BABYLON.MeshBuilder.CreateBox('tarp', { width: w, height: h, depth: d }, scene);
-    b.position.set(x, h / 2 + .4, z); b.material = mats.blue; solid(b, false); return b;
-  }
-  // Ramp: low end at local -z, high end at local +z.
-  function wedge(x, z, w, h, d, rotY, mk = 'w') {
-    const m = BABYLON.MeshBuilder.CreateBox('ramp', { width: w, height: h, depth: d, updatable: true }, scene);
-    const pos = m.getVerticesData(BABYLON.VertexBuffer.PositionKind).slice();
-    for (let i = 0; i < pos.length; i += 3) if (pos[i + 2] < 0 && pos[i + 1] > 0) pos[i + 1] = -h / 2 + 0.08;
-    m.updateVerticesData(BABYLON.VertexBuffer.PositionKind, pos);
-    const nor = []; BABYLON.VertexData.ComputeNormals(pos, m.getIndices(), nor);
-    m.updateVerticesData(BABYLON.VertexBuffer.NormalKind, nor);
-    m.position.set(x, h / 2, z); m.rotation.y = rotY; worldUV(m); m.material = mats[mk];
-    m.refreshBoundingInfo(); solid(m); return m;
-  }
-  // decorative metal truss tower (like the one in the reference)
-  function truss(x, z, h) {
-    const parts = [], B = (w, hh, d, px, py, pz) => { const b = BABYLON.MeshBuilder.CreateBox('t', { width: w, height: hh, depth: d }, scene); b.position.set(px, py, pz); parts.push(b); };
-    for (const dx of [-.4, .4]) for (const dz of [-.4, .4]) B(.1, h, .1, x + dx, h / 2, z + dz);
-    for (let y = .5; y < h; y += 1) { B(.9, .06, .06, x, y, z + .4); B(.9, .06, .06, x, y, z - .4); B(.06, .06, .9, x + .4, y, z); B(.06, .06, .9, x - .4, y, z); }
-    const m = BABYLON.Mesh.MergeMeshes(parts, true, true);
-    m.material = plain(.7, .72, .8, .3, 40); m.isPickable = false; return m;
-  }
-
-  // ---------- Arena (floating island) ----------
-  const S = CFG.S;
-  const ground = BABYLON.MeshBuilder.CreateGround('g', { width: S, height: S }, scene);
-  const gm = new BABYLON.StandardMaterial('gm', scene);
-  gm.diffuseTexture = panelTexture('#e2e4ef', '#bfc3d7', '#a7adc5');
-  gm.diffuseTexture.uScale = S / 8; gm.diffuseTexture.vScale = S / 8;
-  gm.specularColor = C3.Black(); gm.emissiveColor = new C3(.06, .06, .08);
-  ground.material = gm; ground.receiveShadows = true; ground.checkCollisions = true; ground.metadata = { solid: true };
-
-  // low lip around the island edge
-  [[0, S / 2 - .5, S, 1], [0, -S / 2 + .5, S, 1], [S / 2 - .5, 0, 1, S], [-S / 2 + .5, 0, 1, S]].forEach(([x, z, w, d]) => block(x, z, w, 1.6, d, 'g'));
-
-  // centre block with four ramps
-  block(0, 0, 14, 3.4, 14, 'w');
-  wedge(0, -12, 6, 3.4, 10, 0); wedge(0, 12, 6, 3.4, 10, Math.PI);
-  wedge(-12, 0, 6, 3.4, 10, Math.PI / 2); wedge(12, 0, 6, 3.4, 10, -Math.PI / 2);
-
-  // corner towers with blue tarp walls + ramps
-  [[-20, -20], [20, -20], [-20, 20], [20, 20]].forEach(([x, z], i) => {
-    block(x, z, 9, 6, 9, i % 2 ? 'l' : 'w');
-    block(x, z, 9.6, .6, 9.6, 'g', 6);
-    tarp(x + 4.65, z, .2, 4.5, 7); tarp(x - 4.65, z, .2, 4.5, 7);
-    wedge(x, z + (z > 0 ? -6 : 6), 4, 2.6, 7, z > 0 ? 0 : Math.PI);
+/* ──────────────── LOBBY 2D CANVAS ──────────────── */
+const lc = $('lobby-canvas'), lx = lc.getContext('2d');
+let lt = 0;
+function resizeLobby() { lc.width = innerWidth; lc.height = innerHeight; }
+resizeLobby(); addEventListener('resize', resizeLobby);
+const DOTS = Array.from({length:80},()=>({ x:Math.random()*1,y:Math.random()*1,s:Math.random()*2+.5,sp:Math.random()*.0003+.0001,c:`hsl(${220+Math.random()*80},90%,${60+Math.random()*30}%)` }));
+function lobbyFrame(ts) {
+  lt = ts / 1000;
+  lx.clearRect(0,0,lc.width,lc.height);
+  // floor grid
+  const gx = lc.width, gy = lc.height;
+  lx.save(); lx.translate(gx/2, gy*.75); lx.scale(1,.35);
+  const GRID = 9, off = (lt*.04)%1;
+  for(let i=-GRID;i<=GRID;i++){ const x=i/GRID*gx; lx.strokeStyle=`rgba(120,80,255,${.08+.04*Math.abs(Math.sin(lt+i))})`; lx.lineWidth=1; lx.beginPath(); lx.moveTo(x,-gy*3); lx.lineTo(x,gy*3); lx.stroke(); }
+  for(let j=-GRID;j<=GRID;j++){ const y=((j/GRID)+off)%1*gy*2-gy; lx.strokeStyle=`rgba(120,80,255,${.06+.03*Math.abs(Math.sin(lt+j))})`; lx.lineWidth=1; lx.beginPath(); lx.moveTo(-gx*2,y); lx.lineTo(gx*2,y); lx.stroke(); }
+  lx.restore();
+  // dots
+  DOTS.forEach(d=>{ d.y=(d.y+d.sp)%1; const x=d.x*gx, y=d.y*gy; lx.beginPath(); lx.arc(x,y,d.s,0,Math.PI*2); lx.fillStyle=d.c; lx.fill(); });
+  // glow orbs
+  [[.5,.45,180,'#8855ff'],[.3,.6,90,'#3399ff'],[.7,.6,90,'#ff44aa']].forEach(([rx,ry,r,col])=>{
+    const g=lx.createRadialGradient(rx*gx,ry*gy,0,rx*gx,ry*gy,r*(1+.1*Math.sin(lt*1.5)));
+    g.addColorStop(0,col); g.addColorStop(1,'rgba(0,0,0,0)');
+    lx.globalAlpha=.2; lx.fillStyle=g; lx.fillRect(rx*gx-r,ry*gy-r,r*2,r*2); lx.globalAlpha=1;
   });
+  if($('lobby').style.display!=='none') requestAnimationFrame(lobbyFrame);
+}
+requestAnimationFrame(lobbyFrame);
 
-  // tall paneled walls (corridors) with blue curtains + trusses
-  block(-25, -8, 1.2, 9, 14, 'w'); block(25, 8, 1.2, 9, 14, 'w');
-  tarp(-24.3, -8, .15, 5, 10); tarp(24.3, 8, .15, 5, 10);
-  truss(-23.2, -4, 11); truss(23.2, 4, 11);
+/* ──────────────── BABYLON ──────────────── */
+const canvas = $('c');
+const engine = new BABYLON.Engine(canvas, true);
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new C4(.84,.88,.96,1);
+scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+scene.fogColor = new C3(.82,.86,.95);
+scene.fogDensity = .004;
 
-  // cover
-  block(0, -20, 10, 1.2, 1.2, 'g'); block(0, 20, 10, 1.2, 1.2, 'g');
-  block(-9, -9, 6, 1.4, 2, 'g'); block(9, 9, 6, 1.4, 2, 'g');
-  block(-14, -14, 2.2, 1.2, 1.2, 'o'); block(14, 14, 2.2, 1.2, 1.2, 'o');
-  [[-5, -14, 2.5], [5, 14, 2.5], [-14, 8, 2], [14, -8, 2], [-18, -2, 1.8], [18, 2, 1.8]].forEach(([x, z, s]) => block(x, z, s, s, s, 'l'));
+const hemi = new BABYLON.HemisphericLight('h', new V3(0,1,0), scene);
+hemi.intensity = .75; hemi.diffuse = new C3(1,1,1); hemi.groundColor = new C3(.6,.63,.82);
+const sun = new BABYLON.DirectionalLight('s', new V3(-.45,-1,-.35), scene);
+sun.position = new V3(30,60,25); sun.intensity = .35;
+const sg = new BABYLON.ShadowGenerator(2048, sun);
+sg.usePercentageCloserFiltering = true;
+sg.filteringQuality = BABYLON.ShadowGenerator.QUALITY_MEDIUM;
+sg.bias = .0006; sg.normalBias = .02; sg.darkness = .5;
 
-  // ---------- Player camera ----------
-  const cam = new BABYLON.FreeCamera('cam', new V3(0, CFG.player.eye, -24), scene);
-  cam.inputs.clear(); cam.inertia = 0; cam.minZ = 0.05; cam.fov = 1.2;
-  cam.checkCollisions = true; cam.applyGravity = false;
-  cam.ellipsoid = new V3(0.45, 0.85, 0.45);
+// sky
+const skyTex = new BABYLON.DynamicTexture('sky',{width:4,height:512},scene);
+{ const c=skyTex.getContext(),g=c.createLinearGradient(0,0,0,512);
+  g.addColorStop(0,'#1255cc'); g.addColorStop(.3,'#4499ee'); g.addColorStop(.55,'#aaccff');
+  g.addColorStop(.7,'#ddeeff'); g.addColorStop(1,'#f4f8ff');
+  c.fillStyle=g; c.fillRect(0,0,4,512);
+  // clouds
+  for(let i=0;i<40;i++){ const cx=Math.random()*4,cy=150+Math.random()*140,r=20+Math.random()*40;
+    const rg=c.createRadialGradient(cx,cy,0,cx,cy,r); rg.addColorStop(0,'rgba(255,255,255,.7)'); rg.addColorStop(1,'rgba(255,255,255,0)');
+    c.fillStyle=rg; c.fillRect(0,cy-r,4,r*2); }
+  skyTex.update(); }
+const skyS = BABYLON.MeshBuilder.CreateSphere('sky',{diameter:900,segments:12},scene);
+const skyM = new BABYLON.StandardMaterial('skyM',scene);
+skyM.backFaceCulling=false; skyM.disableLighting=true; skyM.emissiveTexture=skyTex;
+skyM.diffuseColor=C3.Black(); skyM.specularColor=C3.Black(); skyM.fogEnabled=false;
+skyS.material=skyM; skyS.infiniteDistance=true; skyS.isPickable=false;
 
-  // ---------- Viewmodels: chunky glossy skins ----------
-  const vm = new BABYLON.TransformNode('vm', scene); vm.parent = cam; vm.position.set(.34, -.32, .75);
-  const GP = (par, w, h, d, x, y, z, m) => {
-    const b = BABYLON.MeshBuilder.CreateBox('g', { width: w, height: h, depth: d }, scene);
-    b.parent = par; b.position.set(x, y, z); b.material = m; b.isPickable = false; return b;
-  };
-  const VM = [];
-  { // 0: gift-wrap assault rifle (green / red / blue)
-    const g = new BABYLON.TransformNode('gun0', scene); g.parent = vm;
-    const green = gloss(.1, .65, .25), red = gloss(.95, .1, .12), blue = gloss(.2, .7, .95), blk = gloss(.08, .08, .1);
-    GP(g, .14, .18, .6, 0, 0, 0, green); GP(g, .13, .15, .5, 0, -.01, .52, blue); GP(g, .05, .05, .3, 0, .01, .9, blk);
-    GP(g, .1, .25, .14, 0, -.2, .05, blk); GP(g, .11, .15, .3, 0, -.02, -.4, green);
-    GP(g, .15, .19, .06, 0, 0, -.12, red); GP(g, .15, .19, .06, 0, 0, .16, red); GP(g, .12, .1, .12, 0, .15, .3, red);
-    VM.push(g);
+// cloud sea below island
+const seaG = BABYLON.MeshBuilder.CreateGround('sea',{width:1400,height:1400},scene);
+seaG.position.y=-32; seaG.isPickable=false;
+const seaTex = new BABYLON.DynamicTexture('sea',512,scene);
+{ const c=seaTex.getContext();
+  c.fillStyle='#e8edf8'; c.fillRect(0,0,512,512);
+  for(let i=0;i<120;i++){ const x=Math.random()*512,y=Math.random()*512,r=20+Math.random()*70;
+    const g=c.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,'rgba(255,255,255,.65)'); g.addColorStop(1,'rgba(255,255,255,0)');
+    c.fillStyle=g; c.fillRect(x-r,y-r,r*2,r*2); }
+  seaTex.update(); }
+const seaM = new BABYLON.StandardMaterial('seaM',scene);
+seaM.disableLighting=true; seaM.emissiveTexture=seaTex; seaM.emissiveTexture.uScale=3; seaM.emissiveTexture.vScale=3;
+seaM.diffuseColor=C3.Black(); seaM.fogEnabled=false; seaG.material=seaM;
+
+/* ── panel texture ── */
+function panelTex(base,seam,joint,cells=4) {
+  const sz=512,t=new BABYLON.DynamicTexture('p',sz,scene),c=t.getContext(),cell=sz/cells;
+  c.fillStyle=base; c.fillRect(0,0,sz,sz);
+  // subtle per-block tint
+  for(let i=0;i<cells;i++) for(let j=0;j<cells;j++){
+    c.fillStyle=`rgba(80,90,140,${.012*((i*7+j*5)%5)})`;
+    c.fillRect(i*cell+2,j*cell+2,cell-4,cell-4);
   }
-  { // 1: shotgun (orange / black)
-    const g = new BABYLON.TransformNode('gun1', scene); g.parent = vm;
-    const org = gloss(1, .5, .1), blk = gloss(.08, .08, .1), wht = gloss(.95, .95, 1);
-    GP(g, .15, .18, .6, 0, 0, 0, org); GP(g, .07, .07, .65, -.04, .04, .58, blk); GP(g, .07, .07, .65, .04, .04, .58, blk);
-    GP(g, .17, .1, .28, 0, -.12, .3, blk); GP(g, .12, .16, .35, 0, -.03, -.4, org); GP(g, .16, .04, .2, 0, .1, .1, wht);
-    VM.push(g);
-  }
-  { // 2: neon sniper (black / pink / purple)
-    const g = new BABYLON.TransformNode('gun2', scene); g.parent = vm;
-    const blk = gloss(.07, .07, .1), pink = gloss(1, .3, .65), pur = gloss(.55, .25, 1);
-    GP(g, .13, .17, .95, 0, 0, 0, blk); GP(g, .05, .05, .85, 0, .02, .9, blk);
-    GP(g, .135, .175, .08, 0, 0, -.2, pink); GP(g, .135, .175, .08, 0, 0, .12, pur); GP(g, .135, .175, .06, 0, 0, .3, pink);
-    GP(g, .11, .2, .35, 0, -.05, -.55, pur);
-    const sc = BABYLON.MeshBuilder.CreateCylinder('sc', { diameter: .14, height: .45 }, scene);
-    sc.parent = g; sc.rotation.x = Math.PI / 2; sc.position.set(0, .15, .1); sc.material = pur; sc.isPickable = false;
-    VM.push(g);
-  }
-  const flashM = new BABYLON.StandardMaterial('fm', scene);
-  flashM.emissiveColor = new C3(1, .85, .35); flashM.disableLighting = true;
-  VM.forEach((g, i) => {
-    const fl = BABYLON.MeshBuilder.CreateSphere('fl', { diameter: .25 }, scene);
-    fl.parent = g; fl.position.z = i === 1 ? 1 : 1.15; fl.material = flashM; fl.isPickable = false; fl.setEnabled(false); g.flash = fl;
-  });
+  c.strokeStyle=seam; c.lineWidth=2.5;
+  for(let i=0;i<=cells;i++){ const p=i*cell; c.beginPath(); c.moveTo(p,0); c.lineTo(p,sz); c.stroke(); c.beginPath(); c.moveTo(0,p); c.lineTo(sz,p); c.stroke(); }
+  c.fillStyle=joint;
+  for(let i=0;i<=cells;i++) for(let j=0;j<=cells;j++){ const x=i*cell,y=j*cell; c.fillRect(x-1,y-8,2,16); c.fillRect(x-8,y-1,16,2); }
+  t.update(); t.anisotropicFilteringLevel=8; return t;
+}
+const M = {
+  w: mk('#d7dae8','#a8afc8','#919ab8'),
+  g: mk('#c4c8da','#9aa0bc','#8188a8'),
+  l: mk('#e3e6f0','#c0c5d8','#aaafcc'),
+  blue: mkPlain(.15,.5,.92,.1,40),
+  red: mkPlain(.88,.15,.15,.05,20),
+  org: mkPlain(.88,.5,.15,.05,20),
+  dark: mkPlain(.1,.1,.14,.05,20),
+};
+function mk(base,seam,joint){ const m=new BABYLON.StandardMaterial('m',scene); m.diffuseTexture=panelTex(base,seam,joint); m.specularColor=new C3(.05,.05,.07); m.emissiveColor=new C3(.05,.05,.07); return m; }
+function mkPlain(r,g,b,spec=.1,pw=32){ const m=new BABYLON.StandardMaterial('p',scene); m.diffuseColor=new C3(r,g,b); m.specularColor=new C3(spec,spec,spec); m.specularPower=pw; return m; }
+// wavy tarp texture
+const tarpTex = new BABYLON.DynamicTexture('tarp',{width:64,height:256},scene);
+{ const c=tarpTex.getContext();
+  for(let y=0;y<256;y++){ const s=.5+.5*Math.sin(y*.2); c.fillStyle=`rgb(${(20+30*s)|0},${(100+55*s)|0},${(210+30*s)|0})`; c.fillRect(0,y,64,1); }
+  tarpTex.update(); }
+M.blue = new BABYLON.StandardMaterial('tarp',scene);
+M.blue.diffuseTexture=tarpTex; M.blue.emissiveColor=new C3(.04,.1,.28); M.blue.specularColor=new C3(.1,.1,.15);
 
-  // ---------- Roblox-style avatars ----------
-  function blocky(parent, baseY, t, isBot, shirt, pants) {
-    const rm = (r, g, b) => plain(r, g, b, .25, 40);
-    const skin = rm(.96, .8, .2), shirtM = rm(...shirt), pantsM = rm(...pants), dark = rm(.08, .08, .1), face = rm(.04, .04, .04);
-    const P = (w, h, d, x, y, z, m, head) => {
-      const b = BABYLON.MeshBuilder.CreateBox('bp', { width: w * t, height: h * t, depth: d * t }, scene);
-      b.parent = parent; b.position.set(x * t, y * t + baseY, z * t); b.material = m; b.isPickable = isBot;
-      if (isBot) b.metadata = { bot: true, head: !!head };
-      shadowGen.addShadowCaster(b); return b;
-    };
-    P(1, 2, 1, -.5, 1, 0, pantsM); P(1, 2, 1, .5, 1, 0, pantsM);          // legs
-    P(2, 2, 1, 0, 3, 0, shirtM);                                          // torso
-    P(1.2, 1.2, 1.2, 0, 4.6, 0, skin, true);                              // head
-    P(.2, .2, .05, -.28, 4.7, .62, face, true); P(.2, .2, .05, .28, 4.7, .62, face, true); P(.5, .16, .05, 0, 4.35, .62, face, true);
-    P(.9, .9, 1.9, -1, 3.3, .9, skin); P(.9, .9, 1.9, 1, 3.3, .9, skin);  // arms forward
-    P(.35, .45, 2.2, 0, 3.6, 1.7, dark);                                  // gun
-  }
+function solid(m,cast=true){ m.checkCollisions=true; m.isPickable=true; m.metadata={solid:true}; m.receiveShadows=true; if(cast) sg.addShadowCaster(m); return m; }
+function block(x,z,w,h,d,mk='w',y0=0){
+  const b=BABYLON.MeshBuilder.CreateBox('b',{width:w,height:h,depth:d},scene);
+  b.position.set(x,y0+h/2,z); b.material=M[mk]; solid(b); return b; }
+function tarp(x,z,w,h,d){ const b=BABYLON.MeshBuilder.CreateBox('tp',{width:w,height:h,depth:d},scene); b.position.set(x,h/2+.5,z); b.material=M.blue; solid(b,false); return b; }
+function wedge(x,z,w,h,d,ry,mk='w'){
+  const m=BABYLON.MeshBuilder.CreateBox('ramp',{width:w,height:h,depth:d,updatable:true},scene);
+  const pos=m.getVerticesData(BABYLON.VertexBuffer.PositionKind).slice();
+  for(let i=0;i<pos.length;i+=3) if(pos[i+2]<0&&pos[i+1]>0) pos[i+1]=-h/2+.08;
+  m.updateVerticesData(BABYLON.VertexBuffer.PositionKind,pos);
+  const nr=[]; BABYLON.VertexData.ComputeNormals(pos,m.getIndices(),nr); m.updateVerticesData(BABYLON.VertexBuffer.NormalKind,nr);
+  m.position.set(x,h/2,z); m.rotation.y=ry; m.material=M[mk]; m.refreshBoundingInfo(); solid(m); return m; }
 
-  const hero = new BABYLON.TransformNode('hero', scene);
-  hero.position.set(0, 0, -24); blocky(hero, 0, .45, false, [.95, .55, .15], [.2, .3, .7]);
+/* ── MAP ── */
+const S=60;
+// floor
+const gnd=BABYLON.MeshBuilder.CreateGround('g',{width:S,height:S},scene);
+const gm=new BABYLON.StandardMaterial('gm',scene);
+gm.diffuseTexture=panelTex('#dde0ef','#bbbfcf','#a4a9be');
+gm.diffuseTexture.uScale=S/8; gm.diffuseTexture.vScale=S/8;
+gm.specularColor=C3.Black(); gm.emissiveColor=new C3(.055,.055,.07);
+gnd.material=gm; gnd.receiveShadows=true; gnd.checkCollisions=true; gnd.metadata={solid:true};
 
-  const bot = BABYLON.MeshBuilder.CreateBox('botc', { width: .9, height: 2, depth: .9 }, scene);
-  bot.isVisible = false; bot.isPickable = false; bot.checkCollisions = true;
-  bot.ellipsoid = new V3(.5, 1, .5);
-  blocky(bot, -1, .38, true, [.5, .3, .95], [.2, .2, .3]);
-  bot.setEnabled(false);
+// island edge lips
+[[0,S/2-.5,S,1.4,1],[0,-S/2+.5,S,1.4,1],[S/2-.5,0,1,1.4,S],[-S/2+.5,0,1,1.4,S]].forEach(([x,z,w,h,d])=>block(x,z,w,h,d,'g'));
 
-  // ---------- State ----------
-  const st = {
-    playing: false, roundActive: false, hp: 100, bhp: 100, w: 0, ammo: WEAPONS.map(w => w.mag), res: WEAPONS.map(w => w.reserve),
-    reloading: false, rid: 0, cd: 0, vy: 0, grounded: true, ps: 0, bs: 0, botCd: 1, strafeDir: 1, strafeT: 0,
-    botStuck: 0, ads: false, adsK: 0, kick: 0, rec: 0, bob: 0, moving: false, timeLeft: 90, timerId: null
-  };
-  const keys = {};
-  let yaw = 0, pitch = 0, started = false, saved = null, mt = 0, hitT = 0;
+// centre raised block + 4 ramps
+block(0,0,12,3.2,12,'w');
+wedge(0,-11,5,3.2,8,0); wedge(0,11,5,3.2,8,Math.PI);
+wedge(-11,0,5,3.2,8,Math.PI/2); wedge(11,0,5,3.2,8,-Math.PI/2);
 
-  // ---------- Audio ----------
-  let ac = null;
-  function sfx(f1, f2, dur, type = 'square', vol = 0.08) {
-    try {
-      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
-      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
-      o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + dur);
-      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      o.connect(g); g.connect(ac.destination); o.start(); o.stop(t + dur);
-    } catch (e) {}
-  }
+// corner towers + tarp walls
+[[-20,-20],[20,-20],[-20,20],[20,20]].forEach(([x,z],i)=>{
+  block(x,z,8,5.5,8,i%2?'l':'w');
+  block(x,z,8.6,.6,8.6,'g',5.5);
+  tarp(x+4.5,z,.18,4,7); tarp(x-4.5,z,.18,4,7);
+  wedge(x,z+(z>0?-5.5:5.5),4,2.4,6.5,z>0?0:Math.PI);
+});
 
-  // ---------- HUD ----------
-  $('weapons').innerHTML = WEAPONS.map((w, i) => `<div class="slot" id="w${i}">${i + 1} ${w.tag}</div>`).join('');
-  const fmtTime = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-  function hud() {
-    $('pbar').firstChild.style.width = Math.max(0, st.hp) + '%';
-    $('hpnum').textContent = Math.max(0, Math.ceil(st.hp));
-    $('sY').textContent = st.ps; $('sP').textContent = st.bs;
-    $('tt').textContent = fmtTime(Math.max(0, st.timeLeft));
-    const W = WEAPONS[st.w];
-    $('wname').textContent = W.name;
-    $('ammo').innerHTML = st.reloading ? '<span class="big">...</span>' : `<span class="big">${st.ammo[st.w]}</span><span class="small">${st.res[st.w]}</span>`;
-    WEAPONS.forEach((w, i) => $('w' + i).classList.toggle('sel', i === st.w));
-  }
-  const setHud = on => { $('hud').style.display = on ? 'block' : 'none'; };
-  function banner(big, ms = 1600, small = '', cls = '') {
-    const b = $('banner');
-    b.innerHTML = `<div class="bn ${cls}">${small ? `<small>${small}</small>` : ''}${big}</div>`;
-    b.style.opacity = 1; setTimeout(() => b.style.opacity = 0, ms);
-  }
-  const hurtFlash = () => { const h = $('hurt'); h.style.opacity = 1; setTimeout(() => h.style.opacity = 0, 120); };
-  function hitMarker(head, kill) {
-    const h = $('hit'); h.className = kill ? 'kill' : head ? 'head' : ''; h.style.opacity = 1;
-    clearTimeout(hitT); hitT = setTimeout(() => h.style.opacity = 0, 130);
-  }
-  function feed(txt) {
-    const d = document.createElement('div'); d.textContent = txt; $('killfeed').prepend(d);
-    setTimeout(() => d.remove(), 4000);
-  }
-  function elim(html) {
-    const e = $('elim'); e.innerHTML = html; e.style.opacity = 1; setTimeout(() => e.style.opacity = 0, 2000);
-  }
+// side walls with tarps
+block(-24,-8,1,8,12,'w'); block(24,8,1,8,12,'w');
+tarp(-23.4,-8,.14,5,9); tarp(23.4,8,.14,5,9);
 
-  function startTimer() {
-    clearInterval(st.timerId); st.timeLeft = 90;
-    st.timerId = setInterval(() => {
-      if (!st.roundActive) return;
-      st.timeLeft--; hud();
-      if (st.timeLeft <= 0) { st.timeLeft = 0; endRound(false, 'TIME UP'); }
-    }, 1000);
-  }
+// cover
+block(0,-22,10,1,1.2,'g'); block(0,22,10,1,1.2,'g');
+block(-9,-9,5,1.2,2,'g'); block(9,9,5,1.2,2,'g');
+block(-14,-14,2,1,1,'org'); block(14,14,2,1,1,'org');
+[[-5,-14,2.2],[5,14,2.2],[-14,8,1.8],[14,-8,1.8],[-18,-2,1.6],[18,2,1.6]].forEach(([x,z,s])=>block(x,z,s,s,s,'l'));
 
-  // ---------- Weapons ----------
-  function setWeapon(i) {
-    if (i === st.w) return;
-    st.w = i; st.reloading = false; st.rid++; st.cd = 0.25;
-    VM.forEach((g, k) => g.setEnabled(k === i)); hud();
-  }
-  VM.forEach((g, k) => g.setEnabled(k === 0));
+// spawn pads
+function pad(z,col){ const p=BABYLON.MeshBuilder.CreateCylinder('pad',{diameter:5,height:.07},scene); p.position.set(0,.035,z); const m=new BABYLON.StandardMaterial('pm',scene); m.emissiveColor=new C3(...col); m.disableLighting=true; p.material=m; p.isPickable=false; }
+pad(-24,[.2,.9,1]); pad(24,[1,.3,.7]);
 
-  const sparkM = new BABYLON.StandardMaterial('sm', scene);
-  sparkM.emissiveColor = new C3(1, 1, 1); sparkM.disableLighting = true;
-  function spark(p) {
-    const s = BABYLON.MeshBuilder.CreateBox('sp', { size: .15 }, scene);
-    s.position.copyFrom(p); s.material = sparkM; s.isPickable = false; setTimeout(() => s.dispose(), 120);
-  }
-  function tracer(from, to, color) {
-    const l = BABYLON.MeshBuilder.CreateLines('t', { points: [from, to] }, scene);
-    l.color = color; l.isPickable = false; setTimeout(() => l.dispose(), 60);
-  }
-  const shootPick = m => m.isPickable && m.isEnabled() && (m.metadata?.solid || m.metadata?.bot);
+/* ── CAMERA ── */
+const cam = new BABYLON.FreeCamera('cam', new V3(0,1.7,-24), scene);
+cam.inputs.clear(); cam.inertia=0; cam.minZ=.05; cam.fov=1.2;
+cam.checkCollisions=true; cam.applyGravity=false;
+cam.ellipsoid=new V3(.45,.85,.45);
 
-  function shoot() {
-    if (!st.roundActive || st.reloading || st.cd > 0) return;
-    const W = WEAPONS[st.w];
-    if (st.ammo[st.w] <= 0) return reload();
-    st.ammo[st.w]--; st.cd = W.delay; st.kick = 1;
-    st.rec += W.recoil; pitch -= W.recoil; yaw += (Math.random() - .5) * W.recoil * .6;
-    const gunN = VM[st.w]; gunN.flash.setEnabled(true); setTimeout(() => gunN.flash.setEnabled(false), 45);
-    if (st.w === 0) sfx(260, 60, .08, 'sawtooth', .06); else if (st.w === 1) sfx(140, 40, .25, 'sawtooth', .12); else sfx(90, 30, .4, 'square', .12);
+/* ── VIEWMODELS ── */
+const vm=new BABYLON.TransformNode('vm',scene); vm.parent=cam; vm.position.set(.34,-.32,.75);
+function GP(par,w,h,d,x,y,z,col){
+  const b=BABYLON.MeshBuilder.CreateBox('gp',{width:w,height:h,depth:d},scene);
+  b.parent=par; b.position.set(x,y,z); b.material=mkPlain(...col); b.isPickable=false; return b;
+}
+const VM=[];
+// 0: green/red/blue AR
+{ const g=new BABYLON.TransformNode('g0',scene); g.parent=vm;
+  GP(g,.14,.17,.65,0,0,0,[.1,.65,.25,.2,60]);  // green body
+  GP(g,.13,.13,.55,0,-.01,.54,[.2,.7,.95,.2,60]); // blue barrel shroud
+  GP(g,.06,.06,.3,0,.01,.94,[.1,.1,.14,.05,20]); // dark barrel
+  GP(g,.1,.26,.12,0,-.2,.05,[.1,.1,.14,.05,20]); // grip
+  GP(g,.14,.16,.07,0,.0,-.12,[.95,.1,.12,.2,60]); // red band
+  GP(g,.14,.16,.07,0,.0,.18,[.95,.1,.12,.2,60]); // red band
+  GP(g,.12,.09,.12,0,.15,.35,[.95,.1,.12,.2,60]); // red bow accent
+  VM.push(g); }
+// 1: shotgun
+{ const g=new BABYLON.TransformNode('g1',scene); g.parent=vm;
+  GP(g,.14,.18,.62,0,0,0,[.88,.5,.15,.05,30]);
+  GP(g,.07,.07,.7,-.04,.04,.6,[.1,.1,.14]);
+  GP(g,.07,.07,.7, .04,.04,.6,[.1,.1,.14]);
+  GP(g,.18,.1,.3,0,-.12,.25,[.1,.1,.14]);
+  VM.push(g); }
+// 2: sniper pink/purple
+{ const g=new BABYLON.TransformNode('g2',scene); g.parent=vm;
+  GP(g,.12,.16,.95,0,0,0,[.06,.06,.1,.05,20]);
+  GP(g,.05,.05,.9,0,.02,.95,[.06,.06,.1]);
+  GP(g,.13,.17,.07,0,0,-.18,[1,.3,.65,.3,80]);
+  GP(g,.13,.17,.07,0,0,.14,[.6,.25,1,.3,80]);
+  GP(g,.13,.17,.06,0,0,.32,[1,.3,.65,.3,80]);
+  const sc=BABYLON.MeshBuilder.CreateCylinder('sc',{diameter:.14,height:.44},scene);
+  sc.parent=g; sc.rotation.x=Math.PI/2; sc.position.set(0,.15,.08);
+  sc.material=mkPlain(.6,.25,1,.3,80); sc.isPickable=false;
+  VM.push(g); }
+const flashM=mkPlain(1,.85,.35,1,1); flashM.emissiveColor=new C3(1,.85,.35); flashM.disableLighting=true;
+VM.forEach((g,i)=>{ const f=BABYLON.MeshBuilder.CreateSphere('fl',{diameter:.22},scene); f.parent=g; f.position.z=i===1?1:1.1; f.material=flashM; f.isPickable=false; f.setEnabled(false); g.flash=f; });
 
-    const fwd = cam.getDirection(V3.Forward()), right = cam.getDirection(V3.Right()), up = cam.getDirection(V3.Up());
-    const spread = (st.ads ? W.ads : W.hip) + (st.moving ? 0.01 : 0);
-    const muzzle = vm.getAbsolutePosition().add(fwd.scale(0.9));
-    let total = 0, head = false;
-    for (let p = 0; p < W.pellets; p++) {
-      const dir = fwd.add(right.scale((Math.random() - .5) * 2 * spread)).add(up.scale((Math.random() - .5) * 2 * spread)).normalize();
-      const hit = scene.pickWithRay(new BABYLON.Ray(cam.position, dir, 150), shootPick);
-      const end = hit?.hit ? hit.pickedPoint : cam.position.add(dir.scale(150));
-      tracer(muzzle, end, new C3(1, .9, .4));
-      if (hit?.hit) {
-        if (hit.pickedMesh.metadata?.bot) {
-          const isHead = !!hit.pickedMesh.metadata.head; if (isHead) head = true;
-          total += W.dmg * (isHead ? W.head : 1);
-        } else spark(hit.pickedPoint);
-      }
-    }
-    if (total > 0) {
-      st.bhp -= total;
-      if (st.bhp <= 0) { st.bhp = 0; hud(); hitMarker(head, true); sfx(600, 1200, .2, 'triangle', .08); feed('YOU  \u27A4  BOT'); elim('Eliminated <b>BOT</b>'); endRound(true); return; }
-      hitMarker(head, false); sfx(900, 500, .06, 'sine', .06);
-    }
-    hud();
-    if (st.ammo[st.w] === 0) reload();
-  }
-  function reload() {
-    const W = WEAPONS[st.w];
-    if (st.reloading || st.ammo[st.w] === W.mag || st.res[st.w] <= 0 || !st.roundActive) return;
-    st.reloading = true; hud();
-    const id = ++st.rid, wi = st.w;
-    setTimeout(() => {
-      if (id !== st.rid) return;
-      const need = Math.min(W.mag - st.ammo[wi], st.res[wi]);
-      st.ammo[wi] += need; st.res[wi] -= need; st.reloading = false; hud();
-    }, W.reload * 1000);
-  }
+/* ── BOT (blocky Roblox-ish) ── */
+const bot=BABYLON.MeshBuilder.CreateBox('botb',{width:.9,height:2,depth:.9},scene);
+bot.isVisible=false; bot.isPickable=false; bot.checkCollisions=true; bot.ellipsoid=new V3(.5,1,.5);
+function limb(par,w,h,d,x,y,z,col,isBot,head){ const b=BABYLON.MeshBuilder.CreateBox('l',{width:w,height:h,depth:d},scene); b.parent=par; b.position.set(x,y,z); b.material=mkPlain(...col); b.isPickable=!!isBot; if(isBot) b.metadata={bot:true,head:!!head}; sg.addShadowCaster(b); return b; }
+function avatar(par,baseY,s,isBot,shirtC,pantsC){
+  const sk=[.95,.78,.2], dk=[.08,.08,.12,.05,20];
+  limb(par,s*.9,s*1.8,s*.9,0,baseY+s*.9,0,pantsC,isBot);   // lower body
+  limb(par,s*1.8,s*1.8,s*.9,0,baseY+s*2.7,0,shirtC,isBot); // torso
+  limb(par,s*1.1,s*1.1,s*1.1,0,baseY+s*3.85,0,sk,isBot,true); // head
+  // eyes
+  limb(par,s*.22,s*.18,s*.05,s*.28,baseY+s*3.92,s*.58,dk);
+  limb(par,s*.22,s*.18,s*.05,-s*.28,baseY+s*3.92,s*.58,dk);
+  // arms
+  limb(par,s*.8,s*.8,s*1.6,-s*1.3,baseY+s*3.0,s*.8,sk,isBot);
+  limb(par,s*.8,s*.8,s*1.6, s*1.3,baseY+s*3.0,s*.8,sk,isBot);
+  // gun
+  limb(par,s*.3,s*.4,s*2,0,baseY+s*3.0,s*1.5,dk);
+}
+avatar(bot,-1,.42,true,[.55,.3,.95,.05,30],[.18,.2,.3,.05,20]);
+bot.setEnabled(false);
 
-  // ---------- Round flow ----------
-  function startRound() {
-    st.hp = CFG.player.hp; st.bhp = CFG.bot.hp; st.vy = 0; st.botCd = 1.2; st.rec = 0; st.ads = false;
-    st.ammo = WEAPONS.map(w => w.mag); st.res = WEAPONS.map(w => w.reserve);
-    st.reloading = false; st.rid++;
-    cam.position.set((Math.random() - .5) * 6, CFG.player.eye + .01, -24);
-    yaw = 0; pitch = 0;
-    bot.position.set((Math.random() - .5) * 6, 1, 24);
-    st.roundActive = false; startTimer(); hud();
-    banner('GET READY', 1000);
-    setTimeout(() => { st.roundActive = true; banner('FIGHT!', 700); }, 1200);
-  }
-  function endRound(playerWon, reason) {
-    if (!st.roundActive) return;
-    st.roundActive = false;
-    if (playerWon) st.ps++; else st.bs++;
-    hud();
-    if (st.ps >= CFG.roundsToWin || st.bs >= CFG.roundsToWin) {
-      banner(playerWon ? 'VICTORY' : 'DEFEAT', 3000, 'MATCH', playerWon ? 'g' : 'r');
-      setTimeout(() => { st.ps = 0; st.bs = 0; startRound(); }, 3200);
-    } else {
-      if (reason) banner(reason, 1500, '', 'r'); else banner(playerWon ? 'WON' : 'LOST', 1500, 'ROUND', playerWon ? 'g' : 'r');
-      setTimeout(startRound, 2000);
-    }
-  }
+/* hero for lobby */
+const heroN=new BABYLON.TransformNode('hero',scene);
+heroN.position.set(0,0,-24);
+avatar(heroN,0,.44,false,[.95,.55,.15,.05,30],[.2,.3,.75,.05,20]);
 
-  // ---------- Input ----------
-  const overlay = $('overlay');
-  overlay.addEventListener('click', () => canvas.requestPointerLock());
-  document.addEventListener('contextmenu', e => e.preventDefault());
-  document.addEventListener('pointerlockchange', () => {
-    st.playing = document.pointerLockElement === canvas;
-    overlay.style.display = st.playing ? 'none' : 'flex';
-    setHud(st.playing);
-    hero.setEnabled(!st.playing);
-    bot.setEnabled(st.playing);
-    st.ads = false; keys.fire = false;
-    if (st.playing) {
-      if (!started) { started = true; startRound(); }
-      else if (saved) cam.position.copyFrom(saved);
-    } else saved = cam.position.clone();
-  });
-  document.addEventListener('mousemove', e => {
-    if (!st.playing) return;
-    const k = 0.0022 * (cam.fov / 1.2);
-    yaw += e.movementX * k; pitch += e.movementY * k;
-    pitch = Math.max(-1.45, Math.min(1.45, pitch));
-  });
-  document.addEventListener('mousedown', e => {
-    if (!st.playing) return;
-    if (e.button === 0) { keys.fire = true; shoot(); }
-    if (e.button === 2) st.ads = true;
-  });
-  document.addEventListener('mouseup', e => {
-    if (e.button === 0) keys.fire = false;
-    if (e.button === 2) st.ads = false;
-  });
-  document.addEventListener('wheel', e => { if (st.playing) setWeapon((st.w + (e.deltaY > 0 ? 1 : 2)) % 3); });
-  window.addEventListener('keydown', e => {
-    keys[e.code] = true;
-    if (!st.playing) return;
-    if (e.code === 'KeyR') reload();
-    if (e.code === 'Digit1') setWeapon(0);
-    if (e.code === 'Digit2') setWeapon(1);
-    if (e.code === 'Digit3') setWeapon(2);
-  });
-  window.addEventListener('keyup', e => keys[e.code] = false);
-  window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
-  window.addEventListener('resize', () => engine.resize());
+/* ── WEAPONS DATA ── */
+const GUNS=[
+  {name:'Assault Rifle', mag:30,res:90, dmg:14,head:2, delay:.095,reload:1.4,auto:true, pellets:1,hip:.02,ads:.006,recoil:.006,zoom:.95},
+  {name:'Shotgun',       mag:6, res:24, dmg:11,head:1.5,delay:.75, reload:1.8,auto:false,pellets:9,hip:.06,ads:.04, recoil:.04, zoom:1.05},
+  {name:'Sniper',        mag:4, res:12, dmg:80,head:2, delay:1.1, reload:2.0,auto:false,pellets:1,hip:.05,ads:.0015,recoil:.05,zoom:.3}
+];
+const SEC={name:'Pistol',    mag:12,res:60,dmg:22,head:1.8,delay:.22,reload:1.1,auto:false,pellets:1,hip:.03,ads:.01,recoil:.012,zoom:1.0};
+const MELEE={name:'Knife'}, UTIL={name:'Grenade'};
+const SLOTS=[GUNS[0],SEC,MELEE,UTIL];
 
-  // ---------- Update loop ----------
-  const downRay = new BABYLON.Ray(V3.Zero(), new V3(0, -1, 0), 3);
-  const solidPick = m => m.isPickable && m.metadata?.solid;
+/* ── STATE ── */
+const st={
+  playing:false,roundActive:false,inLobby:true,
+  hp:100,bhp:100,
+  slot:0, gidx:0, ammo:GUNS.map(g=>g.mag), res:GUNS.map(g=>g.res),
+  reloading:false,rid:0,cd:0,
+  vy:0,grounded:true,moving:false,
+  ps:0,bs:0,
+  botCd:1,strafeDir:1,strafeT:0,botStuck:0,
+  ads:false,adsK:0,kick:0,rec:0,bob:0,
+  timeLeft:90,timerId:null
+};
+const keys={};
+let yaw=0,pitch=0,started=false,saved=null,mt=0,hitT=0;
 
-  scene.onBeforeRenderObservable.add(() => {
-    const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
+/* ── AUDIO ── */
+let ac=null;
+function sfx(f1,f2,dur,type='square',vol=.08){
+  try{
+    ac=ac||new(window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;
+    o.type=type; o.frequency.setValueAtTime(f1,t); o.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t+dur);
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    o.connect(g); g.connect(ac.destination); o.start(); o.stop(t+dur);
+  }catch(e){}
+}
 
-    if (!st.playing) {
-      cam.cameraDirection.set(0, 0, 0);
-      mt += dt; cam.fov = 0.95;
-      const a = Math.sin(mt * 0.35) * 0.8 + 0.5;
-      cam.position.set(Math.sin(a) * 4.2 - 1, 2.3 + Math.sin(mt * 0.5) * 0.15, -24 + Math.cos(a) * 4.2);
-      cam.setTarget(new V3(-1.4, 1.8, -24));
-      hero.position.y = Math.sin(mt * 2) * 0.04;
-      VM.forEach(g => g.setEnabled(false));
-      return;
-    }
-    VM[st.w].setEnabled(!(st.w === 2 && st.adsK > 0.6));
+/* ── HUD HELPERS ── */
+const fmt=s=>Math.floor(s/60)+':'+(''+(s%60)).padStart(2,'0');
+function hud(){
+  const G=curGun();
+  $('sy').textContent=st.ps; $('sb').textContent=st.bs;
+  $('ttime').textContent=fmt(Math.max(0,st.timeLeft));
+  $('hpbar').firstChild.style.width=Math.max(0,st.hp)+'%';
+  $('hpnum').textContent=Math.max(0,Math.ceil(st.hp))+' ♥';
+  $('wlabel').textContent=G?G.name:'—';
+  if(G&&G.mag!=null) $('ammo-big').textContent=st.reloading?'…':st.ammo[st.gidx];
+  else $('ammo-big').textContent='∞';
+  $('ammo-res').textContent=G&&G.mag!=null?'/ '+st.res[st.gidx]:'';
+  [0,1,2,3].forEach(i=>$('ls'+i).classList.toggle('sel',i===st.slot));
+}
+function curGun(){ return st.slot===0?GUNS[st.gidx]:st.slot===1?SEC:null; }
+function setHud(on){ $('hud').style.display=on?'block':'none'; }
+function banner(big,ms=1600,small='',cls=''){
+  const b=$('banner');
+  b.innerHTML=`<div class="bn ${cls}">${small?`<small>${small}</small>`:''}${big}</div>`;
+  b.style.opacity=1; setTimeout(()=>b.style.opacity=0,ms);
+}
+function hurtFl(){ const h=$('hurt'); h.style.opacity=1; setTimeout(()=>h.style.opacity=0,120); }
+function hitMark(head,kill){
+  const h=$('hitmark'); h.textContent=kill?'✕':head?'✕':'✕';
+  h.style.color=kill?'#ffd23f':head?'#ff4444':'#fff';
+  h.style.opacity=1; clearTimeout(hitT); hitT=setTimeout(()=>h.style.opacity=0,140);
+}
+function kf(txt){ const d=document.createElement('div'); d.textContent=txt; $('kf').prepend(d); setTimeout(()=>d.remove(),4000); }
+function elimMsg(html){ const e=$('elim'); e.innerHTML=html; e.style.opacity=1; setTimeout(()=>e.style.opacity=0,2200); }
 
-    cam.rotation.y = yaw; cam.rotation.x = pitch;
-    st.cd = Math.max(0, st.cd - dt);
-    const W = WEAPONS[st.w];
-    if (keys.fire && W.auto) shoot();
-    if (st.rec > 0) { const back = Math.min(st.rec, st.rec * dt * 6 + 0.0005); pitch += back; st.rec -= back; }
+/* ── ROUND TIMER ── */
+function startTimer(){
+  clearInterval(st.timerId); st.timeLeft=90;
+  st.timerId=setInterval(()=>{ if(!st.roundActive)return; st.timeLeft--; hud(); if(st.timeLeft<=0){st.timeLeft=0;endRound(false,'TIME UP');} },1000);
+}
 
-    let mx = 0, mz = 0; st.moving = false;
-    if (st.roundActive) {
-      const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), r = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
-      if (f || r) {
-        const len = Math.hypot(f, r);
-        const sp = ((keys.ShiftLeft && !st.ads) ? CFG.player.sprint : CFG.player.speed) * (st.ads ? 0.6 : 1) * dt;
-        mx = (Math.sin(yaw) * f + Math.cos(yaw) * r) / len * sp;
-        mz = (Math.cos(yaw) * f - Math.sin(yaw) * r) / len * sp;
-        st.moving = true;
-      }
-    }
-
-    const eye = CFG.player.eye;
-    downRay.origin.copyFrom(cam.position); downRay.length = eye + 0.6;
-    const gr = scene.pickWithRay(downRay, solidPick);
-    let dy;
-    if (gr.hit && st.vy <= 0 && cam.position.y - gr.pickedPoint.y <= eye + 0.3) {
-      st.grounded = true; st.vy = 0;
-      dy = Math.max(-0.6, Math.min(0.6, (gr.pickedPoint.y + eye + 0.01) - cam.position.y));
-    } else { st.grounded = false; st.vy -= CFG.player.gravity * dt; dy = st.vy * dt; }
-    if (st.roundActive && keys.Space && st.grounded) { st.vy = CFG.player.jump; st.grounded = false; dy = st.vy * dt; }
-    cam.cameraDirection.set(mx, dy, mz);
-    if (cam.position.y < -6 && st.roundActive) { feed('YOU FELL'); endRound(false, 'YOU FELL'); }
-
-    st.kick = Math.max(0, st.kick - dt * 8);
-    st.bob += dt * (st.moving ? (keys.ShiftLeft ? 14 : 10) : 2);
-    st.adsK += ((st.ads ? 1 : 0) - st.adsK) * Math.min(1, dt * 14);
-    const bx = st.moving ? Math.sin(st.bob) * 0.012 : Math.sin(st.bob) * 0.002;
-    const by = st.moving ? Math.abs(Math.cos(st.bob)) * 0.012 : Math.sin(st.bob) * 0.002;
-    vm.position.set(0.34 * (1 - st.adsK) + bx, -0.32 + 0.12 * st.adsK - by, 0.75 - st.kick * 0.15);
-    vm.rotation.x = -st.kick * 0.25;
-    cam.fov += ((st.ads ? W.zoom : 1.2) - cam.fov) * Math.min(1, dt * 14);
-    $('scope').style.display = (st.w === 2 && st.ads && st.adsK > 0.6) ? 'block' : 'none';
-
-    updateBot(dt);
-  });
-
-  function hasLOS(from, to) {
-    const d = to.subtract(from), dist = d.length();
-    if (dist < 0.01) return true;
-    return !scene.pickWithRay(new BABYLON.Ray(from, d.normalize(), dist), solidPick).hit;
-  }
-
-  function updateBot(dt) {
-    const toP = cam.position.subtract(bot.position); toP.y = 0;
-    const dist = toP.length();
-    bot.rotation.y = Math.atan2(toP.x, toP.z);
-    if (!st.roundActive) return;
-
-    st.strafeT -= dt;
-    if (st.strafeT <= 0) { st.strafeDir = Math.random() < .5 ? -1 : 1; st.strafeT = .6 + Math.random() * 1.4; }
-    const n = toP.normalize();
-    const side = new V3(n.z, 0, -n.x).scale(st.strafeDir);
-    const eyeP = bot.position.add(new V3(0, 1.1, 0));
-    const los = hasLOS(eyeP, cam.position);
-    let fwd = 0;
-    if (!los) fwd = 1; else if (dist > 14) fwd = 1; else if (dist < 8) fwd = -1;
-    const mv = n.scale(fwd).add(side.scale(los ? 1 : 0.5));
-    if (mv.lengthSquared() > 0) mv.normalize();
-    mv.scaleInPlace(CFG.bot.speed * dt);
-    const bx = bot.position.x, bz = bot.position.z;
-    bot.moveWithCollisions(mv);
-    const moved = Math.hypot(bot.position.x - bx, bot.position.z - bz);
-    if (moved < mv.length() * 0.3) {
-      st.botStuck += dt;
-      if (st.botStuck > 0.25) { st.strafeDir *= -1; st.strafeT = 0.8; st.botStuck = 0; }
-    } else st.botStuck = 0;
-
-    const o = new V3(bot.position.x, bot.position.y + 0.5, bot.position.z);
-    const gr = scene.pickWithRay(new BABYLON.Ray(o, new V3(0, -1, 0), 6), solidPick);
-    if (gr.hit) bot.position.y += ((gr.pickedPoint.y + 1.0) - bot.position.y) * Math.min(1, dt * 12);
-
-    st.botCd -= dt;
-    const eye2 = bot.position.add(new V3(0, 1.1, 0));
-    if (st.botCd <= 0 && los && dist < 60) {
-      st.botCd = CFG.bot.fireDelay * (0.7 + Math.random() * 0.6);
-      const hitIt = Math.random() < CFG.bot.accuracy;
-      const aim = cam.position.add(hitIt ? V3.Zero() : new V3((Math.random() - .5) * 3, (Math.random() - .5) * 2, (Math.random() - .5) * 3));
-      tracer(eye2, aim, new C3(1, .3, .3));
-      sfx(200, 70, .07, 'square', .04);
-      if (hitIt) {
-        st.hp -= CFG.bot.damage; hurtFlash(); sfx(120, 60, .15, 'sawtooth', .1); hud();
-        if (st.hp <= 0) { st.hp = 0; hud(); feed('BOT  \u27A4  YOU'); elim('Eliminated by <b>BOT</b>'); endRound(false); }
-      }
-    }
-  }
-
-  // ---------- Start ----------
-  setHud(false);
+/* ── WEAPON SWITCH ── */
+function setGun(i){
+  if(i===st.gidx&&st.slot===0)return;
+  st.slot=0; st.gidx=i; st.reloading=false; st.rid++; st.cd=.25;
+  VM.forEach((g,k)=>g.setEnabled(k===i)); hud();
+}
+function setSlot(s){
+  st.slot=s;
+  if(s===0||s===1){ VM.forEach((g,k)=>g.setEnabled(k===st.gidx&&s===0)); }
+  else VM.forEach(g=>g.setEnabled(false));
   hud();
-  engine.runRenderLoop(() => scene.render());
+}
+VM.forEach((g,k)=>g.setEnabled(k===0));
+
+/* ── SHOOT ── */
+const sparkM2=mkPlain(1,1,1,1,1); sparkM2.emissiveColor=new C3(1,1,1); sparkM2.disableLighting=true;
+function tracer(a,b,col){ const l=BABYLON.MeshBuilder.CreateLines('t',{points:[a,b]},scene); l.color=col; l.isPickable=false; setTimeout(()=>l.dispose(),60); }
+function spark(p){ const s=BABYLON.MeshBuilder.CreateBox('sp',{size:.14},scene); s.position.copyFrom(p); s.material=sparkM2; s.isPickable=false; setTimeout(()=>s.dispose(),100); }
+const spk=m=>m.isPickable&&m.isEnabled()&&(m.metadata?.solid||m.metadata?.bot);
+
+function shoot(){
+  if(!st.roundActive||st.reloading||st.cd>0)return;
+  if(st.slot===2){ melee(); return; }
+  if(st.slot===3){ grenade(); return; }
+  const G=curGun(); if(!G)return;
+  if(st.ammo[st.gidx]<=0)return reload();
+  st.ammo[st.gidx]--; MP.shots++; st.cd=G.delay; st.kick=1;
+  st.rec+=G.recoil; pitch-=G.recoil; yaw+=(Math.random()-.5)*G.recoil*.6;
+  const gn=VM[st.gidx]; if(gn&&gn.flash){ gn.flash.setEnabled(true); setTimeout(()=>gn.flash.setEnabled(false),45); }
+  if(st.gidx===0) sfx(260,60,.08,'sawtooth',.06); else if(st.gidx===1) sfx(140,40,.25,'sawtooth',.12); else sfx(90,30,.4,'square',.12);
+  const spread=(st.ads?G.ads:G.hip)+(st.moving?.01:0);
+  const fwd=cam.getDirection(V3.Forward()),right=cam.getDirection(V3.Right()),up=cam.getDirection(V3.Up());
+  const muzzle=vm.getAbsolutePosition().add(fwd.scale(.9));
+  let tot=0,head=false;
+  for(let p=0;p<G.pellets;p++){
+    const dir=fwd.add(right.scale((Math.random()-.5)*2*spread)).add(up.scale((Math.random()-.5)*2*spread)).normalize();
+    const hit=scene.pickWithRay(new BABYLON.Ray(cam.position,dir,150),spk);
+    const end=hit?.hit?hit.pickedPoint:cam.position.add(dir.scale(150));
+    tracer(muzzle,end,new C3(1,.9,.4));
+    if(hit?.hit){ if(hit.pickedMesh.metadata?.bot){ const ih=!!hit.pickedMesh.metadata.head; if(ih)head=true; tot+=G.dmg*(ih?G.head:1); } else spark(hit.pickedPoint); }
+  }
+  if(tot>0){
+    st.bhp-=tot;
+    if(MP.on){MP.dealt+=tot;} else if(st.bhp<=0){st.bhp=0;hud();hitMark(head,true);sfx(600,1200,.2,'triangle',.08);kf('YOU → BOT  eliminated');elimMsg('Eliminated <b>BOT</b>');endRound(true);return;}
+    hitMark(head,false); sfx(900,500,.06,'sine',.06);
+  }
+  hud();
+  if(st.ammo[st.gidx]===0)reload();
+}
+function reload(){
+  const G=curGun(); if(!G||G.mag==null)return;
+  if(st.reloading||st.ammo[st.gidx]===G.mag||st.res[st.gidx]<=0||!st.roundActive)return;
+  st.reloading=true; hud();
+  const id=++st.rid,wi=st.gidx;
+  setTimeout(()=>{ if(id!==st.rid)return; const n=Math.min(G.mag-st.ammo[wi],st.res[wi]); st.ammo[wi]+=n; st.res[wi]-=n; st.reloading=false; hud(); },G.reload*1000);
+}
+
+/* ── ROUNDS ── */
+function startRound(){
+  st.hp=100;st.bhp=100;st.vy=0;st.botCd=1.2;st.rec=0;st.ads=false;
+  st.ammo=GUNS.map(g=>g.mag);st.res=GUNS.map(g=>g.res);
+  st.reloading=false;st.rid++;
+  const gz=MP.on&&MP.side===1?1:-1; cam.position.set((Math.random()-.5)*6,1.71,24*gz);yaw=gz>0?Math.PI:0;pitch=0;
+  bot.position.set((Math.random()-.5)*6,1,-24*gz);
+  st.roundActive=false;startTimer();hud();
+  banner('GET READY',1000);
+  setTimeout(()=>{st.roundActive=true;banner('FIGHT!',700);},1200);
+}
+function endRound(pw,reason){
+  if(!st.roundActive)return; st.roundActive=false;
+  if(pw)st.ps++;else st.bs++; if(MP.on&&!pw&&reason!=='TIME UP')MP.deaths++; hud();
+  if(st.ps>=5||st.bs>=5){ banner(pw?'VICTORY':'DEFEAT',3000,'MATCH',pw?'g':'r'); setTimeout(()=>{st.ps=0;st.bs=0;startRound();},3200); }
+  else{ banner(reason||(pw?'WON':'LOST'),1500,'ROUND',pw?'g':'r'); setTimeout(startRound,2000); }
+}
+
+/* ── INPUT ── */
+$('play-btn').addEventListener('click',()=>canvas.requestPointerLock());
+document.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('pointerlockchange',()=>{
+  st.playing=document.pointerLockElement===canvas;
+  $('lobby').style.display=st.playing?'none':'flex';
+  setHud(st.playing);
+  heroN.setEnabled(!st.playing);
+  bot.setEnabled(st.playing&&(!MP.on||MP.live));
+  st.ads=false;keys.fire=false;
+  if(st.playing){
+    if(!started){started=true;startRound();}
+    else if(saved)cam.position.copyFrom(saved);
+    if(!started) requestAnimationFrame(lobbyFrame);
+  } else {
+    saved=cam.position.clone();
+    requestAnimationFrame(lobbyFrame);
+  }
+});
+document.addEventListener('mousemove',e=>{
+  if(!st.playing)return;
+  const k=.0022*SENS*(cam.fov/1.2);
+  yaw+=e.movementX*k; pitch+=e.movementY*k;
+  pitch=Math.max(-1.45,Math.min(1.45,pitch));
+});
+document.addEventListener('mousedown',e=>{ if(!st.playing)return; if(e.button===0){keys.fire=true;shoot();} if(e.button===2)st.ads=true; });
+document.addEventListener('mouseup',e=>{ if(e.button===0)keys.fire=false; if(e.button===2)st.ads=false; });
+document.addEventListener('wheel',e=>{ if(!st.playing)return; setGun((st.gidx+(e.deltaY>0?1:2))%3); });
+window.addEventListener('keydown',e=>{
+  keys[e.code]=true; if(!st.playing)return;
+  if(e.code==='KeyR')reload();
+  if(e.code==='Digit1')setGun(0);
+  if(e.code==='Digit2')setGun(1);
+  if(e.code==='Digit3')setGun(2);
+  if(e.code==='KeyF'){setSlot(2);}
+  if(e.code==='KeyQ'){setSlot(3);}
+  if(e.code==='Digit4')setSlot(st.slot===1?0:1);
+});
+window.addEventListener('keyup',e=>{ keys[e.code]=false; if(e.code==='KeyF'||e.code==='KeyQ') setSlot(0); });
+window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
+window.addEventListener('resize',()=>engine.resize());
+
+/* ── MULTIPLAYER (JSONBin) + EXTRAS ── */
+let SENS=1;
+const API='https://api.jsonbin.io/v3/b';
+const MP={on:false,live:false,side:0,key:'',my:'',opp:'',dealt:0,deaths:0,shots:0,n:0,ln:-1,rx:0,seen:null,tgt:null,tw:0,tr:0,wb:false,rb:false,snap:true,
+  tick(dt){
+    if(!this.on){ $('mpstat').textContent=''; return; }
+    this.tw+=dt; this.tr+=dt;
+    if(this.tw>=.35&&!this.wb){ this.tw=0; this.send(); }
+    if(this.tr>=.35&&!this.rb){ this.tr=0; this.poll(); }
+    const ok=!!this.tgt&&Date.now()-this.rx<6000;
+    this.live=ok; bot.setEnabled(ok);
+    $('mpstat').textContent=ok?'● ONLINE  rival connected':'○ Waiting for rival…';
+    if(!ok){ this.snap=true; return; }
+    const o=this.tgt, ty=o.y-.71;
+    if(this.snap){ bot.position.set(o.x,ty,o.z); this.snap=false; }
+    const k=Math.min(1,dt*9);
+    bot.position.x+=(o.x-bot.position.x)*k; bot.position.y+=(ty-bot.position.y)*k; bot.position.z+=(o.z-bot.position.z)*k;
+    bot.rotation.y=o.yaw;
+  },
+  async send(){ this.wb=true;
+    try{ await fetch(API+'/'+this.my,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':this.key},
+      body:JSON.stringify({x:+cam.position.x.toFixed(2),y:+cam.position.y.toFixed(2),z:+cam.position.z.toFixed(2),yaw:+yaw.toFixed(3),p:+pitch.toFixed(3),
+        hp:st.hp,dealt:this.dealt,deaths:this.deaths,shots:this.shots,n:++this.n,rdy:1})}); }catch(e){}
+    this.wb=false; },
+  async poll(){ this.rb=true;
+    try{ const r=await fetch(API+'/'+this.opp+'/latest',{headers:{'X-Bin-Meta':'false'},cache:'no-store'}); const o=await r.json(); if(o&&o.rdy)this.apply(o); }catch(e){}
+    this.rb=false; },
+  apply(o){
+    if(!this.seen)this.seen={dealt:o.dealt,deaths:o.deaths,shots:o.shots};
+    const s=this.seen; this.tgt=o;
+    if(o.n!==this.ln){ this.ln=o.n; this.rx=Date.now(); }
+    if(o.dealt>s.dealt){ const d=o.dealt-s.dealt; s.dealt=o.dealt;
+      if(st.roundActive){ st.hp-=d; hurtFl(); sfx(120,60,.15,'sawtooth',.1);
+        if(st.hp<=0){ st.hp=0; kf('RIVAL → YOU  eliminated'); elimMsg('Eliminated by <b>RIVAL</b>'); endRound(false); }
+        hud(); } }
+    if(o.deaths>s.deaths){ s.deaths=o.deaths;
+      if(st.roundActive){ kf('YOU → RIVAL  eliminated'); elimMsg('Eliminated <b>RIVAL</b>'); endRound(true); } }
+    if(o.shots>s.shots){ s.shots=o.shots; const e=bot.position.add(new V3(0,.9,0));
+      tracer(e,e.add(new V3(Math.sin(o.yaw)*Math.cos(o.p),-Math.sin(o.p),Math.cos(o.yaw)*Math.cos(o.p)).scale(40)),new C3(1,.3,.3)); sfx(200,70,.07,'square',.04); }
+  }
+};
+const msg=t=>$('mp-msg').textContent=t;
+try{ $('mp-key').value=localStorage.getItem('rv_key')||''; }catch(_){}
+$('mp-my').onclick=e=>{ e.target.select(); try{ navigator.clipboard.writeText(e.target.value); msg('Code copied.'); }catch(_){} };
+$('mp-make').onclick=async()=>{
+  MP.key=$('mp-key').value.trim(); if(!MP.key)return msg('Paste your JSONBin master key first.');
+  msg('Creating your code…');
+  try{ const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-Master-Key':MP.key,'X-Bin-Private':'false','X-Bin-Name':'rivals-'+Date.now()},body:'{"rdy":0}'});
+    const j=await r.json(); if(!r.ok)throw new Error(j.message||r.status);
+    MP.my=j.metadata.id; $('mp-my').value=MP.my;
+    try{ localStorage.setItem('rv_key',MP.key); }catch(_){}
+    msg('Send your code to your rival, paste theirs below, then press Connect.');
+  }catch(e){ msg('JSONBin error: '+e.message); } };
+$('mp-go').onclick=()=>{
+  const o=$('mp-opp').value.trim();
+  if(!MP.my)return msg('Create your code first.');
+  if(o.length<10||o===MP.my)return msg('Paste your rival\'s code (not your own).');
+  Object.assign(MP,{opp:o,side:MP.my<o?0:1,on:true,seen:null,tgt:null,ln:-1,n:0,dealt:0,deaths:0,shots:0,snap:true});
+  st.ps=0; st.bs=0; started=false; msg('Ready. Press PLAY. The match starts when both players are in.'); };
+$('mp-off').onclick=()=>{ MP.on=false; MP.live=false; started=false; st.ps=0; st.bs=0; msg('Solo mode: you vs bot.'); };
+$('sens').oninput=e=>{ SENS=+e.target.value; };
+document.querySelectorAll('.lnav').forEach(n=>n.onclick=()=>{
+  document.querySelectorAll('.lnav').forEach(x=>x.classList.toggle('active',x===n));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.dataset.t===n.dataset.t)); });
+
+function dmgOpp(d){ st.bhp-=d; hud();
+  if(MP.on){ MP.dealt+=d; hitMark(false,false); }
+  else if(st.bhp<=0){ kf('YOU → BOT  eliminated'); elimMsg('Eliminated <b>BOT</b>'); hitMark(false,true); endRound(true); }
+  else hitMark(false,false); }
+function melee(){ st.cd=.5; sfx(180,80,.1,'sawtooth',.08);
+  const r=scene.pickWithRay(new BABYLON.Ray(cam.position,cam.getDirection(V3.Forward()),3),spk);
+  if(r?.hit&&r.pickedMesh.metadata?.bot)dmgOpp(55); }
+function grenade(){ st.cd=3; sfx(300,200,.05,'sine',.05);
+  const f=cam.getDirection(V3.Forward()), r=scene.pickWithRay(new BABYLON.Ray(cam.position,f,22),solidP);
+  const p=r?.hit?r.pickedPoint.subtract(f.scale(.3)):cam.position.add(f.scale(22));
+  const b=BABYLON.MeshBuilder.CreateSphere('gr',{diameter:.3},scene); b.position.copyFrom(p); b.material=flashM; b.isPickable=false;
+  setTimeout(()=>{ sfx(80,20,.5,'sawtooth',.15); b.scaling.setAll(14);
+    if(BABYLON.Vector3.Distance(p,bot.position)<6&&bot.isEnabled())dmgOpp(70);
+    setTimeout(()=>b.dispose(),160); },1100); }
+
+/* ── LOOP ── */
+const downRay=new BABYLON.Ray(V3.Zero(),new V3(0,-1,0),3);
+const solidP=m=>m.isPickable&&m.metadata?.solid;
+function hasLOS(a,b){ const d=b.subtract(a),dist=d.length(); if(dist<.01)return true; return!scene.pickWithRay(new BABYLON.Ray(a,d.normalize(),dist),solidP).hit; }
+
+scene.onBeforeRenderObservable.add(()=>{
+  const dt=Math.min(engine.getDeltaTime()/1000,.05);
+
+  if(!st.playing){
+    cam.cameraDirection.set(0,0,0); mt+=dt; cam.fov=.95;
+    const a=Math.sin(mt*.35)*.8+.5;
+    cam.position.set(Math.sin(a)*4.2-1,2.4+Math.sin(mt*.5)*.15,-24+Math.cos(a)*4.2);
+    cam.setTarget(new V3(-1.2,2,-24));
+    heroN.position.y=Math.sin(mt*2)*.04;
+    VM.forEach(g=>g.setEnabled(false));
+    return;
+  }
+
+  VM[st.gidx].setEnabled(st.slot===0&&!(st.gidx===2&&st.adsK>.6));
+  cam.rotation.y=yaw; cam.rotation.x=pitch;
+  st.cd=Math.max(0,st.cd-dt);
+  const G=curGun();
+  if(keys.fire&&G?.auto)shoot();
+  if(st.rec>0){const back=Math.min(st.rec,st.rec*dt*6+.0005);pitch+=back;st.rec-=back;}
+
+  let mx=0,mz=0; st.moving=false;
+  if(st.roundActive){
+    const f=(keys.KeyW?1:0)-(keys.KeyS?1:0),r=(keys.KeyD?1:0)-(keys.KeyA?1:0);
+    if(f||r){const len=Math.hypot(f,r);const sp=((keys.ShiftLeft&&!st.ads)?12:8)*(st.ads?.6:1)*dt;mx=(Math.sin(yaw)*f+Math.cos(yaw)*r)/len*sp;mz=(Math.cos(yaw)*f-Math.sin(yaw)*r)/len*sp;st.moving=true;}
+  }
+  downRay.origin.copyFrom(cam.position); downRay.length=1.7+.6;
+  const gr=scene.pickWithRay(downRay,solidP);
+  let dy;
+  if(gr.hit&&st.vy<=0&&cam.position.y-gr.pickedPoint.y<=1.7+.3){st.grounded=true;st.vy=0;dy=Math.max(-.6,Math.min(.6,(gr.pickedPoint.y+1.71)- cam.position.y));}
+  else{st.grounded=false;st.vy-=26*dt;dy=st.vy*dt;}
+  if(st.roundActive&&keys.Space&&st.grounded){st.vy=8.5;st.grounded=false;dy=st.vy*dt;}
+  cam.cameraDirection.set(mx,dy,mz);
+  if(cam.position.y<-8&&st.roundActive){kf('YOU FELL');endRound(false,'YOU FELL');}
+
+  st.kick=Math.max(0,st.kick-dt*8);
+  st.bob+=dt*(st.moving?(keys.ShiftLeft?14:10):2);
+  st.adsK+=((st.ads?1:0)-st.adsK)*Math.min(1,dt*14);
+  const bx=st.moving?Math.sin(st.bob)*.012:Math.sin(st.bob)*.002;
+  const by=st.moving?Math.abs(Math.cos(st.bob))*.012:Math.sin(st.bob)*.002;
+  vm.position.set(.34*(1-st.adsK)+bx,-.32+.12*st.adsK-by,.75-st.kick*.15);
+  vm.rotation.x=-st.kick*.25;
+  cam.fov+=((st.ads&&G?G.zoom:1.2)-cam.fov)*Math.min(1,dt*14);
+  $('scope').style.display=(st.gidx===2&&st.ads&&st.adsK>.6)?'block':'none';
+
+  MP.tick(dt);
+  // bot
+  const toP=cam.position.subtract(bot.position);toP.y=0;
+  const dist=toP.length();
+  if(!MP.on)bot.rotation.y=Math.atan2(toP.x,toP.z);
+  if(st.roundActive&&!MP.on){
+    st.strafeT-=dt;
+    if(st.strafeT<=0){st.strafeDir=Math.random()<.5?-1:1;st.strafeT=.6+Math.random()*1.4;}
+    const n=toP.normalize();
+    const side=new V3(n.z,0,-n.x).scale(st.strafeDir);
+    const eyeP=bot.position.add(new V3(0,1.1,0));
+    const los=hasLOS(eyeP,cam.position);
+    let fwd=0; if(!los)fwd=1;else if(dist>14)fwd=1;else if(dist<8)fwd=-1;
+    const mv=n.scale(fwd).add(side.scale(los?1:.5));
+    if(mv.lengthSquared()>0)mv.normalize(); mv.scaleInPlace(5.2*dt);
+    const bxp=bot.position.x,bzp=bot.position.z;
+    bot.moveWithCollisions(mv);
+    if(Math.hypot(bot.position.x-bxp,bot.position.z-bzp)<mv.length()*.3){st.botStuck+=dt;if(st.botStuck>.25){st.strafeDir*=-1;st.strafeT=.8;st.botStuck=0;}}else st.botStuck=0;
+    const bo=new V3(bot.position.x,bot.position.y+.5,bot.position.z);
+    const bgr=scene.pickWithRay(new BABYLON.Ray(bo,new V3(0,-1,0),6),solidP);
+    if(bgr.hit)bot.position.y+=(bgr.pickedPoint.y+1-bot.position.y)*Math.min(1,dt*12);
+    st.botCd-=dt;
+    if(st.botCd<=0&&los&&dist<60){
+      st.botCd=.55*(.7+Math.random()*.6);
+      const hit=Math.random()<.33;
+      const aim=cam.position.add(hit?V3.Zero():new V3((Math.random()-.5)*3,(Math.random()-.5)*2,(Math.random()-.5)*3));
+      tracer(eyeP,aim,new C3(1,.3,.3));
+      sfx(200,70,.07,'square',.04);
+      if(hit){st.hp-=10;hurtFl();sfx(120,60,.15,'sawtooth',.1);hud();if(st.hp<=0){st.hp=0;hud();kf('BOT → YOU  eliminated');elimMsg('Eliminated by <b>BOT</b>');endRound(false);}}
+    }
+  }
+});
+
+setHud(false); hud();
+engine.runRenderLoop(()=>scene.render());
 })();
 </script>
 </body>
