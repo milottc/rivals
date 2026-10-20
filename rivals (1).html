@@ -2,57 +2,90 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Rivals Base - Babylon.js</title>
+<title>Rivals - Babylon.js</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html, body { margin:0; height:100%; overflow:hidden; background:#dfe9ff; font-family:'Segoe UI',system-ui,sans-serif; color:#fff; user-select:none; }
+  html, body { margin:0; height:100%; overflow:hidden; background:#cfe0f5; font-family:'Segoe UI',system-ui,sans-serif; color:#fff; user-select:none; }
   #c { width:100%; height:100%; display:block; outline:none; }
   #hud { position:fixed; inset:0; pointer-events:none; display:none; }
-  #crosshair { position:fixed; left:50%; top:50%; width:20px; height:20px; margin:-10px 0 0 -10px; }
-  #crosshair::before, #crosshair::after { content:''; position:absolute; background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.6); }
-  #crosshair::before { left:9px; top:0; width:2px; height:20px; }
-  #crosshair::after { top:9px; left:0; height:2px; width:20px; }
-  #crosshair i { position:absolute; left:6px; top:6px; width:8px; height:8px; background:#5b6cff; border-radius:50%; }
-  #hit { position:fixed; left:50%; top:50%; width:34px; height:34px; margin:-17px 0 0 -17px; opacity:0; transition:opacity .08s; }
-  #hit::before, #hit::after { content:''; position:absolute; left:16px; top:-4px; width:3px; height:42px; background:#fff; transform:rotate(45deg); box-shadow:0 0 4px #000; }
+
+  /* top bar: yellow team / timer / purple team */
+  #topbar { position:fixed; top:8px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:10px; }
+  .team { height:48px; min-width:150px; display:flex; align-items:center; justify-content:flex-end; gap:12px; padding:0 18px; font-size:30px; font-weight:900; border-radius:4px; box-shadow:0 3px 8px rgba(0,0,0,.3); }
+  .team .ic { font-size:22px; opacity:.9; }
+  #tY { background:linear-gradient(#f6d23a,#d9a800); color:#fff; text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #tP { background:linear-gradient(#7c5cf0,#4a2fc4); justify-content:flex-start; flex-direction:row-reverse; }
+  #timer { height:48px; min-width:100px; display:flex; align-items:center; justify-content:center; gap:8px; background:linear-gradient(#3a3d4a,#23252f); font-size:26px; font-weight:800; border-radius:4px; box-shadow:0 3px 8px rgba(0,0,0,.3); }
+
+  /* crosshair "( )" like the reference */
+  #crosshair { position:fixed; left:50%; top:50%; width:44px; height:34px; margin:-17px 0 0 -22px; }
+  #crosshair::before, #crosshair::after { content:''; position:absolute; top:0; width:10px; height:30px; border:3px solid rgba(255,255,255,.95); border-radius:50%; box-shadow:0 0 2px rgba(0,0,0,.6); }
+  #crosshair::before { left:0; border-right-color:transparent; border-top-color:transparent; border-bottom-color:transparent; }
+  #crosshair::after { right:0; border-left-color:transparent; border-top-color:transparent; border-bottom-color:transparent; }
+  #crosshair i { position:absolute; left:20px; top:14px; width:4px; height:4px; background:#fff; border-radius:50%; box-shadow:0 0 2px #000; }
+
+  #hit { position:fixed; left:50%; top:50%; width:40px; height:40px; margin:-20px 0 0 -20px; opacity:0; transition:opacity .08s; }
+  #hit::before, #hit::after { content:''; position:absolute; left:18px; top:-4px; width:4px; height:48px; background:#fff; transform:rotate(45deg); box-shadow:0 0 4px #000; }
   #hit::after { transform:rotate(-45deg); }
   #hit.head::before, #hit.head::after { background:#ff3b3b; }
   #hit.kill::before, #hit.kill::after { background:#ffd23f; }
-  .bar { position:fixed; height:20px; width:280px; background:rgba(10,12,40,.45); border:3px solid #fff; border-radius:12px; overflow:hidden; box-shadow:0 3px 10px rgba(0,0,0,.35); }
-  .bar > div { height:100%; transition:width .12s; }
-  #pbar { left:24px; bottom:28px; } #pbar > div { background:linear-gradient(#6dffa0,#1fbf5a); }
-  #ebar { left:50%; top:18px; margin-left:-140px; } #ebar > div { background:linear-gradient(#ff7a7a,#e02a3a); }
-  #ename { position:fixed; top:46px; width:100%; text-align:center; font-size:13px; font-weight:800; letter-spacing:3px; text-shadow:0 2px 4px #000; }
-  #score { position:fixed; top:16px; left:24px; font-size:24px; font-weight:900; text-shadow:0 2px 6px #000; }
-  #ammo { position:fixed; right:28px; bottom:26px; font-size:46px; font-weight:900; text-shadow:0 3px 8px #000; }
-  #weapons { position:fixed; right:28px; bottom:92px; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
-  #weapons .w { font-weight:800; font-size:15px; letter-spacing:2px; padding:5px 14px; border-radius:8px; background:rgba(10,12,40,.45); border:2px solid transparent; opacity:.7; }
-  #weapons .w b { margin-right:8px; color:#9fb2ff; }
-  #weapons .w.sel { opacity:1; border-color:#fff; background:rgba(91,108,255,.75); }
-  #banner { position:fixed; top:28%; width:100%; text-align:center; font-size:60px; font-weight:900; font-style:italic; text-shadow:0 4px 0 #3b1fa8, 0 8px 16px rgba(0,0,0,.5); opacity:0; transition:opacity .2s; }
-  #hurt { position:fixed; inset:0; box-shadow:inset 0 0 160px 40px rgba(255,0,0,.75); opacity:0; transition:opacity .25s; }
+
+  #killfeed { position:fixed; top:14px; right:14px; font-size:14px; font-weight:800; text-align:right; }
+  #killfeed div { background:linear-gradient(90deg,#7c5cf0,#c9a400); padding:5px 14px; margin-bottom:4px; border-radius:4px; text-shadow:0 1px 3px #000; }
+  #elim { position:fixed; top:72%; width:100%; text-align:center; font-size:22px; font-weight:800; text-shadow:0 2px 4px #000; opacity:0; transition:opacity .2s; }
+  #elim b { color:#a98bff; }
+
+  /* bottom-left: health */
+  #spec { position:fixed; left:0; bottom:44px; background:rgba(20,22,30,.85); padding:4px 14px 4px 10px; font-weight:800; font-size:15px; border-radius:0 6px 6px 0; }
+  #pbar { position:fixed; left:10px; bottom:10px; width:290px; height:26px; background:rgba(15,20,15,.85); border:2px solid #000; border-radius:14px; overflow:hidden; }
+  #pbar > div { height:100%; background:linear-gradient(#7de05a,#3da12a); transition:width .12s; }
+  #hpnum { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:15px; text-shadow:0 1px 3px #000; }
+
+  /* bottom-right: ammo + weapon + slots */
+  #ammo { position:fixed; right:26px; bottom:92px; font-weight:900; text-shadow:0 3px 8px #000; display:flex; align-items:baseline; gap:6px; }
+  #ammo .big { font-size:56px; line-height:1; }
+  #ammo .small { font-size:18px; opacity:.8; }
+  #wname { position:fixed; right:26px; bottom:66px; font-size:22px; font-weight:800; text-shadow:0 2px 4px #000; }
+  #weapons { position:fixed; right:20px; bottom:10px; display:flex; gap:6px; }
+  #weapons .slot { width:56px; height:48px; border-radius:6px; background:rgba(30,32,42,.85); border:2px solid transparent; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:13px; opacity:.8; }
+  #weapons .slot.sel { border-color:#f6d23a; opacity:1; }
+  #hint { position:fixed; left:50%; bottom:8px; transform:translateX(-50%); background:rgba(20,22,30,.85); padding:6px 14px; border-radius:8px; font-size:11px; font-weight:700; opacity:.9; white-space:nowrap; }
+  #hint b { background:#444a5c; padding:1px 5px; border-radius:3px; margin:0 4px 0 10px; }
+
+  #banner { position:fixed; top:24%; width:100%; display:flex; justify-content:center; opacity:0; transition:opacity .2s; }
+  .bn { min-width:240px; text-align:center; padding:6px 28px 10px; border:3px solid #fff; border-radius:6px; font-weight:900; font-size:44px; line-height:1; background:linear-gradient(#3a3d52,#1d2030); box-shadow:0 6px 16px rgba(0,0,0,.4); }
+  .bn small { display:block; font-size:14px; letter-spacing:3px; opacity:.9; margin-bottom:3px; }
+  .bn.g { background:linear-gradient(#3fcf5a,#12802c); } .bn.r { background:linear-gradient(#ff5a5a,#a01818); }
+  #hurt { position:fixed; inset:0; box-shadow:inset 0 0 160px 40px rgba(255,0,0,.7); opacity:0; transition:opacity .25s; }
   #scope { position:fixed; inset:0; display:none; background:radial-gradient(circle at center, transparent 0, transparent 27vmin, #000 27.4vmin); }
   #scope::before { content:''; position:absolute; left:0; right:0; top:50%; height:1px; background:#000; }
   #scope::after { content:''; position:absolute; top:0; bottom:0; left:50%; width:1px; background:#000; }
 
-  #overlay { position:fixed; inset:0; background:linear-gradient(90deg, rgba(20,10,60,.65), rgba(20,10,60,0) 65%); display:flex; flex-direction:column; align-items:flex-start; justify-content:center; padding-left:7vw; cursor:pointer; }
+  #overlay { position:fixed; inset:0; background:linear-gradient(90deg, rgba(20,10,60,.55), rgba(20,10,60,0) 65%); display:flex; flex-direction:column; align-items:flex-start; justify-content:center; padding-left:7vw; cursor:pointer; }
   #overlay h1 { font-size:clamp(64px,11vw,150px); margin:0; line-height:.9; font-style:italic; font-weight:900; letter-spacing:2px; color:#ffd23f; -webkit-text-stroke:4px #3b1fa8; text-shadow:6px 6px 0 #6a3df0, 10px 10px 0 rgba(0,0,0,.35); transform:rotate(-4deg); }
-  #overlay .sub { font-size:22px; font-weight:800; letter-spacing:8px; color:#fff; margin:14px 0 30px 6px; text-shadow:0 2px 6px #000; }
+  #overlay .sub { font-size:22px; font-weight:800; letter-spacing:8px; margin:14px 0 30px 6px; text-shadow:0 2px 6px #000; }
   #overlay button { font:900 40px 'Segoe UI',system-ui,sans-serif; letter-spacing:4px; padding:14px 70px; border:4px solid #000; border-radius:10px; background:linear-gradient(#5dff7a,#1fbf45); color:#fff; text-shadow:0 3px 0 #0b7a27; box-shadow:0 8px 0 #0b7a27; cursor:pointer; transition:transform .1s; }
   #overlay button:hover { transform:translateY(-3px) scale(1.04); }
-  #overlay p { opacity:.95; line-height:1.7; margin:22px 0 0 6px; font-size:15px; text-shadow:0 2px 4px #000; max-width:460px; }
+  #overlay p { line-height:1.7; margin:22px 0 0 6px; font-size:15px; text-shadow:0 2px 4px #000; max-width:460px; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 
 <div id="hud">
-  <div id="score">YOU 0 - 0 BOT</div>
-  <div class="bar" id="ebar"><div style="width:100%"></div></div>
-  <div id="ename">BOT</div>
-  <div class="bar" id="pbar"><div style="width:100%"></div></div>
+  <div id="topbar">
+    <div class="team" id="tY"><span class="ic">&#9760;</span><span id="sY">0</span></div>
+    <div id="timer"><span>&#8987;</span><span id="tt">1:30</span></div>
+    <div class="team" id="tP"><span class="ic">&#9760;</span><span id="sP">0</span></div>
+  </div>
+  <div id="killfeed"></div>
+  <div id="elim"></div>
+  <div id="spec">&#128065; 1</div>
+  <div id="pbar"><div style="width:100%"></div><div id="hpnum" style="position:absolute;background:none;height:auto">100</div></div>
+  <div id="ammo"><span class="big">30</span><span class="small">90</span></div>
+  <div id="wname">Assault Rifle</div>
   <div id="weapons"></div>
-  <div id="ammo">30 / 30</div>
+  <div id="hint"><b>Tab</b>Scoreboard <b>F</b>Quick Melee <b>Q</b>Quick Utility</div>
   <div id="crosshair"><i></i></div>
   <div id="hit"></div>
   <div id="scope"></div>
@@ -76,151 +109,196 @@
   // ---------- CONFIG (tweak here) ----------
   const CFG = {
     roundsToWin: 5,
-    S: 60, // arena size
+    S: 60,
     player: { hp: 100, speed: 8, sprint: 12, jump: 8.5, gravity: 26, eye: 1.7 },
     bot:    { hp: 100, speed: 5.2, fireDelay: 0.55, accuracy: 0.33, damage: 10 }
   };
   const WEAPONS = [
-    { name:'RIFLE',   dmg:14, head:2,   delay:0.095, mag:30, reload:1.4, auto:true,  pellets:1, hip:0.02, ads:0.006,  recoil:0.006, zoom:0.95, color:[0.2,0.9,1] },
-    { name:'SHOTGUN', dmg:11, head:1.5, delay:0.75,  mag:6,  reload:1.8, auto:false, pellets:9, hip:0.06, ads:0.04,   recoil:0.04,  zoom:1.05, color:[1,0.6,0.15] },
-    { name:'SNIPER',  dmg:80, head:2,   delay:1.1,   mag:4,  reload:2.0, auto:false, pellets:1, hip:0.05, ads:0.0015, recoil:0.05,  zoom:0.3,  color:[0.8,0.45,1] }
+    { name:'Assault Rifle', tag:'AR', dmg:14, head:2,   delay:0.095, mag:30, reserve:90, reload:1.4, auto:true,  pellets:1, hip:0.02, ads:0.006,  recoil:0.006, zoom:0.95 },
+    { name:'Shotgun',       tag:'SG', dmg:11, head:1.5, delay:0.75,  mag:6,  reserve:24, reload:1.8, auto:false, pellets:9, hip:0.06, ads:0.04,   recoil:0.04,  zoom:1.05 },
+    { name:'Sniper',        tag:'SN', dmg:80, head:2,   delay:1.1,   mag:4,  reserve:12, reload:2.0, auto:false, pellets:1, hip:0.05, ads:0.0015, recoil:0.05,  zoom:0.3  }
   ];
 
   // ---------- Engine / scene ----------
   const canvas = $('c');
   const engine = new BABYLON.Engine(canvas, true);
   const scene = new BABYLON.Scene(engine);
-  scene.clearColor = new C4(0.87, 0.92, 1, 1);
+  scene.clearColor = new C4(0.86, 0.9, 0.97, 1);
   scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-  scene.fogColor = new C3(0.87, 0.92, 1);
-  scene.fogDensity = 0.006;
-  { const ip = scene.imageProcessingConfiguration; ip.isEnabled = true; ip.contrast = 1.2; ip.exposure = 1.0; }
+  scene.fogColor = new C3(0.86, 0.89, 0.96);
+  scene.fogDensity = 0.0035;
 
-  // Lights + soft shadows
+  // flat, hazy lighting like the reference
   const hemi = new BABYLON.HemisphericLight('h', new V3(0, 1, 0), scene);
-  hemi.intensity = 0.65; hemi.diffuse = new C3(1, 1, 1); hemi.groundColor = new C3(0.55, 0.58, 0.8);
+  hemi.intensity = 0.78; hemi.diffuse = new C3(1, 1, 1); hemi.groundColor = new C3(0.62, 0.64, 0.8);
   const sun = new BABYLON.DirectionalLight('s', new V3(-0.45, -1, -0.35), scene);
-  sun.position = new V3(30, 60, 25); sun.intensity = 0.6;
+  sun.position = new V3(30, 60, 25); sun.intensity = 0.3;
   const shadowGen = new BABYLON.ShadowGenerator(2048, sun);
   shadowGen.usePercentageCloserFiltering = true;
   shadowGen.filteringQuality = BABYLON.ShadowGenerator.QUALITY_MEDIUM;
-  shadowGen.bias = 0.0006; shadowGen.normalBias = 0.02;
+  shadowGen.bias = 0.0006; shadowGen.normalBias = 0.02; shadowGen.darkness = 0.55;
 
-  const glow = new BABYLON.GlowLayer('glow', scene, { mainTextureFixedSize: 512, blurKernelSize: 40 });
-  glow.intensity = 0.8;
-
-  // Sky dome
-  const skyTex = new BABYLON.DynamicTexture('sky', { width: 4, height: 512 }, scene);
+  // ---------- Sky + cloud sea (island floats in the sky) ----------
+  const skyTex = new BABYLON.DynamicTexture('sky', { width: 1024, height: 512 }, scene);
   { const c = skyTex.getContext(); const g = c.createLinearGradient(0, 0, 0, 512);
-    g.addColorStop(0, '#6fa8ff'); g.addColorStop(0.5, '#bcd8ff'); g.addColorStop(1, '#f4f8ff');
-    c.fillStyle = g; c.fillRect(0, 0, 4, 512); skyTex.update(); }
+    g.addColorStop(0, '#1666e0'); g.addColorStop(.25, '#3f93f5'); g.addColorStop(.42, '#9ccaff'); g.addColorStop(.5, '#e4eeff'); g.addColorStop(1, '#ffffff');
+    c.fillStyle = g; c.fillRect(0, 0, 1024, 512);
+    const cols = ['255,255,255', '246,222,240', '226,214,250'];
+    for (let i = 0; i < 90; i++) {
+      const x = Math.random() * 1024, y = 150 + Math.random() * 150, r = 40 + Math.random() * 110;
+      const rg = c.createRadialGradient(x, y, 0, x, y, r), col = cols[i % 3];
+      rg.addColorStop(0, `rgba(${col},.7)`); rg.addColorStop(1, `rgba(${col},0)`);
+      c.fillStyle = rg; c.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    skyTex.update(); }
   const sky = BABYLON.MeshBuilder.CreateSphere('sky', { diameter: 900, segments: 16 }, scene);
   const skyM = new BABYLON.StandardMaterial('skyM', scene);
   skyM.backFaceCulling = false; skyM.disableLighting = true; skyM.emissiveTexture = skyTex;
   skyM.diffuseColor = C3.Black(); skyM.specularColor = C3.Black(); skyM.fogEnabled = false;
   sky.material = skyM; sky.infiniteDistance = true; sky.isPickable = false;
 
-  // ---------- Materials / builders ----------
-  const mat = (r, g, b) => {
+  const seaTex = new BABYLON.DynamicTexture('sea', { width: 1024, height: 1024 }, scene);
+  { const c = seaTex.getContext(); c.fillStyle = '#eef0fa'; c.fillRect(0, 0, 1024, 1024);
+    const cols = ['255,255,255', '240,222,245', '210,225,255', '255,236,240'];
+    for (let i = 0; i < 220; i++) {
+      const x = Math.random() * 1024, y = Math.random() * 1024, r = 40 + Math.random() * 120;
+      const rg = c.createRadialGradient(x, y, 0, x, y, r), col = cols[i % 4];
+      rg.addColorStop(0, `rgba(${col},.55)`); rg.addColorStop(1, `rgba(${col},0)`);
+      c.fillStyle = rg; c.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    seaTex.update(); }
+  const sea = BABYLON.MeshBuilder.CreateGround('sea', { width: 1200, height: 1200 }, scene);
+  sea.position.y = -30; sea.isPickable = false;
+  const seaM = new BABYLON.StandardMaterial('seaM', scene);
+  seaM.disableLighting = true; seaM.emissiveTexture = seaTex; seaM.emissiveTexture.uScale = 3; seaM.emissiveTexture.vScale = 3;
+  seaM.diffuseColor = C3.Black(); seaM.specularColor = C3.Black(); seaM.fogEnabled = false;
+  sea.material = seaM;
+
+  // ---------- Materials ----------
+  // panel texture: pale blocks with thin seams and small "+" joints, like the reference
+  function panelTexture(base, line, cross, cells = 4) {
+    const size = 512, t = new BABYLON.DynamicTexture('pt', size, scene), c = t.getContext(), cell = size / cells;
+    c.fillStyle = base; c.fillRect(0, 0, size, size);
+    for (let i = 0; i < cells; i++) for (let j = 0; j < cells; j++) {
+      c.fillStyle = `rgba(80,90,140,${0.018 * ((i * 5 + j * 3) % 4)})`; c.fillRect(i * cell, j * cell, cell, cell);
+    }
+    c.strokeStyle = line; c.lineWidth = 3;
+    for (let i = 0; i <= cells; i++) {
+      const p = i * cell;
+      c.beginPath(); c.moveTo(p, 0); c.lineTo(p, size); c.stroke();
+      c.beginPath(); c.moveTo(0, p); c.lineTo(size, p); c.stroke();
+    }
+    c.fillStyle = cross;
+    for (let i = 0; i <= cells; i++) for (let j = 0; j <= cells; j++) {
+      const x = i * cell, y = j * cell; c.fillRect(x - 1.5, y - 9, 3, 18); c.fillRect(x - 9, y - 1.5, 18, 3);
+    }
+    t.update(); t.anisotropicFilteringLevel = 8; return t;
+  }
+  const texMat = (base, line, cross) => {
+    const m = new BABYLON.StandardMaterial('tm', scene);
+    m.diffuseTexture = panelTexture(base, line, cross); m.specularColor = new C3(.05, .05, .06);
+    m.emissiveColor = new C3(.06, .06, .08); return m;
+  };
+  const plain = (r, g, b, spec = .08, power = 32) => {
     const m = new BABYLON.StandardMaterial('m', scene);
-    m.diffuseColor = new C3(r, g, b); m.specularColor = new C3(0.12, 0.12, 0.15); m.specularPower = 64;
-    return m;
+    m.diffuseColor = new C3(r, g, b); m.specularColor = new C3(spec, spec, spec); m.specularPower = power; return m;
   };
-  const neonMat = (r, g, b) => {
-    const m = new BABYLON.StandardMaterial('n', scene);
-    m.emissiveColor = new C3(r, g, b); m.disableLighting = true; return m;
+  const gloss = (r, g, b) => plain(r, g, b, .7, 80);
+  const mats = {
+    w: texMat('#d9dbe8', '#b4b8ce', '#9ca2bd'),
+    g: texMat('#c7cadc', '#a5aac4', '#8d93b0'),
+    l: texMat('#e6e8f2', '#c4c8da', '#aab0c8'),
+    o: plain(.9, .5, .3)
   };
-  const mats = { w: mat(.88, .9, .96), g: mat(.78, .81, .9), b: mat(.74, .84, .98), l: mat(.84, .78, .97), c: mat(.72, .9, .95) };
-  const NEON = { cy: neonMat(.2, .9, 1), pu: neonMat(.7, .4, 1), pk: neonMat(1, .35, .7) };
-  const EDGE = new C4(.27, .32, .6, 1);
-  const edge = (m, w = 3) => { m.enableEdgesRendering(); m.edgesWidth = w; m.edgesColor = EDGE; };
+  // blue tarp curtain with wavy folds
+  const tarpTex = new BABYLON.DynamicTexture('tarp', 256, scene);
+  { const c = tarpTex.getContext();
+    for (let y = 0; y < 256; y++) { const s = .5 + .5 * Math.sin(y * .28); c.fillStyle = `rgb(${20 + 30 * s | 0},${90 + 55 * s | 0},${215 + 25 * s | 0})`; c.fillRect(0, y, 256, 1); }
+    tarpTex.update(); }
+  mats.blue = new BABYLON.StandardMaterial('tarp', scene);
+  mats.blue.diffuseTexture = tarpTex; mats.blue.emissiveColor = new C3(.05, .12, .3); mats.blue.specularColor = new C3(.1, .1, .15);
+
+  // world-space UVs so panel seams stay a constant size on every block
+  function worldUV(m, tile = 8) {
+    const P = m.getVerticesData(BABYLON.VertexBuffer.PositionKind), N = m.getVerticesData(BABYLON.VertexBuffer.NormalKind), uv = [];
+    const ox = m.position.x, oy = m.position.y, oz = m.position.z;
+    for (let i = 0; i < P.length; i += 3) {
+      const x = P[i] + ox, y = P[i + 1] + oy, z = P[i + 2] + oz;
+      const ax = Math.abs(N[i]), ay = Math.abs(N[i + 1]), az = Math.abs(N[i + 2]);
+      let u, v;
+      if (ay >= ax && ay >= az) { u = x; v = z; } else if (ax >= az) { u = z; v = y; } else { u = x; v = y; }
+      uv.push(u / tile, v / tile);
+    }
+    m.updateVerticesData(BABYLON.VertexBuffer.UVKind, uv);
+  }
   const solid = (m, cast = true) => {
     m.checkCollisions = true; m.isPickable = true; m.metadata = { solid: true }; m.receiveShadows = true;
     if (cast) shadowGen.addShadowCaster(m);
     return m;
   };
   function block(x, z, w, h, d, mk = 'w', y0 = 0) {
-    const b = BABYLON.MeshBuilder.CreateBox('b', { width: w, height: h, depth: d }, scene);
-    b.position.set(x, y0 + h / 2, z); b.material = mats[mk]; solid(b); edge(b); return b;
+    const b = BABYLON.MeshBuilder.CreateBox('b', { width: w, height: h, depth: d, updatable: true }, scene);
+    b.position.set(x, y0 + h / 2, z); worldUV(b); b.material = mats[mk]; solid(b); return b;
   }
-  // Ramp: low end at local -z, high end at local +z. rotY turns it.
-  function wedge(x, z, w, h, d, rotY, mk = 'b') {
+  function tarp(x, z, w, h, d) {
+    const b = BABYLON.MeshBuilder.CreateBox('tarp', { width: w, height: h, depth: d }, scene);
+    b.position.set(x, h / 2 + .4, z); b.material = mats.blue; solid(b, false); return b;
+  }
+  // Ramp: low end at local -z, high end at local +z.
+  function wedge(x, z, w, h, d, rotY, mk = 'w') {
     const m = BABYLON.MeshBuilder.CreateBox('ramp', { width: w, height: h, depth: d, updatable: true }, scene);
     const pos = m.getVerticesData(BABYLON.VertexBuffer.PositionKind).slice();
     for (let i = 0; i < pos.length; i += 3) if (pos[i + 2] < 0 && pos[i + 1] > 0) pos[i + 1] = -h / 2 + 0.08;
     m.updateVerticesData(BABYLON.VertexBuffer.PositionKind, pos);
     const nor = []; BABYLON.VertexData.ComputeNormals(pos, m.getIndices(), nor);
     m.updateVerticesData(BABYLON.VertexBuffer.NormalKind, nor);
-    m.position.set(x, h / 2, z); m.rotation.y = rotY; m.material = mats[mk];
-    m.refreshBoundingInfo(); solid(m); edge(m); return m;
+    m.position.set(x, h / 2, z); m.rotation.y = rotY; worldUV(m); m.material = mats[mk];
+    m.refreshBoundingInfo(); solid(m); return m;
   }
-  function neon(x, y, z, w, h, d, col) {
-    const n = BABYLON.MeshBuilder.CreateBox('neon', { width: w, height: h, depth: d }, scene);
-    n.position.set(x, y, z); n.material = NEON[col]; n.isPickable = false; glow.addIncludedOnlyMesh(n); return n;
+  // decorative metal truss tower (like the one in the reference)
+  function truss(x, z, h) {
+    const parts = [], B = (w, hh, d, px, py, pz) => { const b = BABYLON.MeshBuilder.CreateBox('t', { width: w, height: hh, depth: d }, scene); b.position.set(px, py, pz); parts.push(b); };
+    for (const dx of [-.4, .4]) for (const dz of [-.4, .4]) B(.1, h, .1, x + dx, h / 2, z + dz);
+    for (let y = .5; y < h; y += 1) { B(.9, .06, .06, x, y, z + .4); B(.9, .06, .06, x, y, z - .4); B(.06, .06, .9, x + .4, y, z); B(.06, .06, .9, x - .4, y, z); }
+    const m = BABYLON.Mesh.MergeMeshes(parts, true, true);
+    m.material = plain(.7, .72, .8, .3, 40); m.isPickable = false; return m;
   }
 
-  // ---------- Arena ----------
+  // ---------- Arena (floating island) ----------
   const S = CFG.S;
   const ground = BABYLON.MeshBuilder.CreateGround('g', { width: S, height: S }, scene);
-  const gtex = new BABYLON.DynamicTexture('gt', 1024, scene);
-  { const c = gtex.getContext();
-    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { c.fillStyle = (i + j) % 2 ? '#f1f4ff' : '#e4e9fa'; c.fillRect(i * 128, j * 128, 128, 128); }
-    c.strokeStyle = '#c3cbec'; c.lineWidth = 4;
-    for (let i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(i * 128, 0); c.lineTo(i * 128, 1024); c.stroke(); c.beginPath(); c.moveTo(0, i * 128); c.lineTo(1024, i * 128); c.stroke(); }
-    gtex.update(); }
-  gtex.anisotropicFilteringLevel = 8;
   const gm = new BABYLON.StandardMaterial('gm', scene);
-  gm.diffuseTexture = gtex; gm.diffuseTexture.uScale = S / 16; gm.diffuseTexture.vScale = S / 16;
-  gm.specularColor = C3.Black();
+  gm.diffuseTexture = panelTexture('#e2e4ef', '#bfc3d7', '#a7adc5');
+  gm.diffuseTexture.uScale = S / 8; gm.diffuseTexture.vScale = S / 8;
+  gm.specularColor = C3.Black(); gm.emissiveColor = new C3(.06, .06, .08);
   ground.material = gm; ground.receiveShadows = true; ground.checkCollisions = true; ground.metadata = { solid: true };
 
-  // walls + neon trim
-  [[0, S / 2, S + 2, 1], [0, -S / 2, S + 2, 1], [S / 2, 0, 1, S], [-S / 2, 0, 1, S]].forEach(([x, z, w, d]) => block(x, z, w, 8, d, 'g'));
-  [1, 7].forEach((y, i) => {
-    const c = i ? 'pu' : 'cy', o = S / 2 - 0.52;
-    neon(0, y, o, S - 1, .2, .06, c); neon(0, y, -o, S - 1, .2, .06, c);
-    neon(o, y, 0, .06, .2, S - 1, c); neon(-o, y, 0, .06, .2, S - 1, c);
+  // low lip around the island edge
+  [[0, S / 2 - .5, S, 1], [0, -S / 2 + .5, S, 1], [S / 2 - .5, 0, 1, S], [-S / 2 + .5, 0, 1, S]].forEach(([x, z, w, d]) => block(x, z, w, 1.6, d, 'g'));
+
+  // centre block with four ramps
+  block(0, 0, 14, 3.4, 14, 'w');
+  wedge(0, -12, 6, 3.4, 10, 0); wedge(0, 12, 6, 3.4, 10, Math.PI);
+  wedge(-12, 0, 6, 3.4, 10, Math.PI / 2); wedge(12, 0, 6, 3.4, 10, -Math.PI / 2);
+
+  // corner towers with blue tarp walls + ramps
+  [[-20, -20], [20, -20], [-20, 20], [20, 20]].forEach(([x, z], i) => {
+    block(x, z, 9, 6, 9, i % 2 ? 'l' : 'w');
+    block(x, z, 9.6, .6, 9.6, 'g', 6);
+    tarp(x + 4.65, z, .2, 4.5, 7); tarp(x - 4.65, z, .2, 4.5, 7);
+    wedge(x, z + (z > 0 ? -6 : 6), 4, 2.6, 7, z > 0 ? 0 : Math.PI);
   });
 
-  // centre tower with ramps north + south
-  block(0, 0, 12, 3.2, 12, 'w'); neon(0, 2.8, 0, 12.12, .14, 12.12, 'cy');
-  block(-5.6, 0, .8, 1, 10, 'g', 3.2); block(5.6, 0, .8, 1, 10, 'g', 3.2);
-  wedge(0, -11, 6, 3.2, 10, 0); wedge(0, 11, 6, 3.2, 10, Math.PI);
+  // tall paneled walls (corridors) with blue curtains + trusses
+  block(-25, -8, 1.2, 9, 14, 'w'); block(25, 8, 1.2, 9, 14, 'w');
+  tarp(-24.3, -8, .15, 5, 10); tarp(24.3, 8, .15, 5, 10);
+  truss(-23.2, -4, 11); truss(23.2, 4, 11);
 
-  // corner platforms with ramps
-  [-1, 1].forEach(sx => [-1, 1].forEach(sz => {
-    block(17 * sx, 17 * sz, 8, 2.4, 8, 'l'); neon(17 * sx, 2.0, 17 * sz, 8.12, .14, 8.12, 'pu');
-    wedge(17 * sx, 9 * sz, 4, 2.4, 8, sz > 0 ? 0 : Math.PI);
-    block(17 * sx, 19.5 * sz, 3, 1, 1, 'g', 2.4);
-    block(9 * sx, 9 * sz, 1.4, 7, 1.4, 'w'); // pillars
-  }));
-
-  // mid perches with side ramps
-  block(11, 0, 3, 2.2, 6, 'g'); block(-11, 0, 3, 2.2, 6, 'g');
-  wedge(16.5, 0, 4, 2.2, 8, -Math.PI / 2); wedge(-16.5, 0, 4, 2.2, 8, Math.PI / 2);
-
-  // cover near spawns + scattered cubes
-  block(0, -20, 8, 1, 1.2, 'g'); block(0, 20, 8, 1, 1.2, 'g');
-  block(24, -9, 4, 3, 4, 'b'); block(-24, 9, 4, 3, 4, 'b');
-  block(24, 9, 3, 1.6, 3, 'g'); block(-24, -9, 3, 1.6, 3, 'g');
-
-  // spawn pads
-  const pad = (z, c) => {
-    const p = BABYLON.MeshBuilder.CreateCylinder('pad', { diameter: 5, height: .06 }, scene);
-    p.position.set(0, .03, z); p.material = NEON[c]; p.isPickable = false; glow.addIncludedOnlyMesh(p);
-  };
-  pad(-24, 'cy'); pad(24, 'pk');
-
-  // floating background blocks
-  const floaters = [];
-  for (let i = 0; i < 40; i++) {
-    const ang = Math.random() * Math.PI * 2, rad = 55 + Math.random() * 90, s = 3 + Math.random() * 12;
-    const b = BABYLON.MeshBuilder.CreateBox('f', { size: s }, scene);
-    b.position.set(Math.cos(ang) * rad, 2 + Math.random() * 60, Math.sin(ang) * rad);
-    b.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
-    b.material = mats[['w', 'g', 'b', 'l'][i % 4]]; b.isPickable = false; edge(b, 4);
-    b._rs = (Math.random() - .5) * 0.2; floaters.push(b);
-  }
+  // cover
+  block(0, -20, 10, 1.2, 1.2, 'g'); block(0, 20, 10, 1.2, 1.2, 'g');
+  block(-9, -9, 6, 1.4, 2, 'g'); block(9, 9, 6, 1.4, 2, 'g');
+  block(-14, -14, 2.2, 1.2, 1.2, 'o'); block(14, 14, 2.2, 1.2, 1.2, 'o');
+  [[-5, -14, 2.5], [5, 14, 2.5], [-14, 8, 2], [14, -8, 2], [-18, -2, 1.8], [18, 2, 1.8]].forEach(([x, z, s]) => block(x, z, s, s, s, 'l'));
 
   // ---------- Player camera ----------
   const cam = new BABYLON.FreeCamera('cam', new V3(0, CFG.player.eye, -24), scene);
@@ -228,67 +306,82 @@
   cam.checkCollisions = true; cam.applyGravity = false;
   cam.ellipsoid = new V3(0.45, 0.85, 0.45);
 
-  // ---------- Viewmodels (3 weapons) ----------
-  const vm = new BABYLON.TransformNode('vm', scene); vm.parent = cam; vm.position.set(.32, -.3, .7);
-  const gw = mat(.92, .94, 1), gd = mat(.13, .14, .19);
+  // ---------- Viewmodels: chunky glossy skins ----------
+  const vm = new BABYLON.TransformNode('vm', scene); vm.parent = cam; vm.position.set(.34, -.32, .75);
   const GP = (par, w, h, d, x, y, z, m) => {
     const b = BABYLON.MeshBuilder.CreateBox('g', { width: w, height: h, depth: d }, scene);
     b.parent = par; b.position.set(x, y, z); b.material = m; b.isPickable = false; return b;
   };
   const VM = [];
-  WEAPONS.forEach((W, i) => {
-    const g = new BABYLON.TransformNode('gun' + i, scene); g.parent = vm;
-    const acc = neonMat(...W.color);
-    if (i === 0) { GP(g, .1, .14, .62, 0, 0, 0, gw); GP(g, .05, .05, .35, 0, .02, .45, gd); GP(g, .08, .22, .12, 0, -.17, .05, gd); GP(g, .11, .03, .4, 0, .085, .05, acc); }
-    if (i === 1) { GP(g, .13, .15, .55, 0, 0, 0, gw); GP(g, .06, .06, .6, -.035, .03, .55, gd); GP(g, .06, .06, .6, .035, .03, .55, gd); GP(g, .15, .09, .22, 0, -.1, .2, acc); }
-    if (i === 2) {
-      GP(g, .09, .13, .75, 0, 0, 0, gw); GP(g, .04, .04, .75, 0, .02, .7, gd); GP(g, .1, .03, .5, 0, .07, .1, acc);
-      const sc = BABYLON.MeshBuilder.CreateCylinder('sc', { diameter: .09, height: .32 }, scene);
-      sc.parent = g; sc.rotation.x = Math.PI / 2; sc.position.set(0, .12, .05); sc.material = gd; sc.isPickable = false;
-    }
-    const fl = BABYLON.MeshBuilder.CreateSphere('fl', { diameter: .22 }, scene);
-    fl.parent = g; fl.position.z = i === 0 ? .7 : i === 1 ? 1 : 1.1; fl.material = neonMat(1, .85, .35);
-    fl.isPickable = false; fl.setEnabled(false); g.flash = fl;
+  { // 0: gift-wrap assault rifle (green / red / blue)
+    const g = new BABYLON.TransformNode('gun0', scene); g.parent = vm;
+    const green = gloss(.1, .65, .25), red = gloss(.95, .1, .12), blue = gloss(.2, .7, .95), blk = gloss(.08, .08, .1);
+    GP(g, .14, .18, .6, 0, 0, 0, green); GP(g, .13, .15, .5, 0, -.01, .52, blue); GP(g, .05, .05, .3, 0, .01, .9, blk);
+    GP(g, .1, .25, .14, 0, -.2, .05, blk); GP(g, .11, .15, .3, 0, -.02, -.4, green);
+    GP(g, .15, .19, .06, 0, 0, -.12, red); GP(g, .15, .19, .06, 0, 0, .16, red); GP(g, .12, .1, .12, 0, .15, .3, red);
     VM.push(g);
+  }
+  { // 1: shotgun (orange / black)
+    const g = new BABYLON.TransformNode('gun1', scene); g.parent = vm;
+    const org = gloss(1, .5, .1), blk = gloss(.08, .08, .1), wht = gloss(.95, .95, 1);
+    GP(g, .15, .18, .6, 0, 0, 0, org); GP(g, .07, .07, .65, -.04, .04, .58, blk); GP(g, .07, .07, .65, .04, .04, .58, blk);
+    GP(g, .17, .1, .28, 0, -.12, .3, blk); GP(g, .12, .16, .35, 0, -.03, -.4, org); GP(g, .16, .04, .2, 0, .1, .1, wht);
+    VM.push(g);
+  }
+  { // 2: neon sniper (black / pink / purple)
+    const g = new BABYLON.TransformNode('gun2', scene); g.parent = vm;
+    const blk = gloss(.07, .07, .1), pink = gloss(1, .3, .65), pur = gloss(.55, .25, 1);
+    GP(g, .13, .17, .95, 0, 0, 0, blk); GP(g, .05, .05, .85, 0, .02, .9, blk);
+    GP(g, .135, .175, .08, 0, 0, -.2, pink); GP(g, .135, .175, .08, 0, 0, .12, pur); GP(g, .135, .175, .06, 0, 0, .3, pink);
+    GP(g, .11, .2, .35, 0, -.05, -.55, pur);
+    const sc = BABYLON.MeshBuilder.CreateCylinder('sc', { diameter: .14, height: .45 }, scene);
+    sc.parent = g; sc.rotation.x = Math.PI / 2; sc.position.set(0, .15, .1); sc.material = pur; sc.isPickable = false;
+    VM.push(g);
+  }
+  const flashM = new BABYLON.StandardMaterial('fm', scene);
+  flashM.emissiveColor = new C3(1, .85, .35); flashM.disableLighting = true;
+  VM.forEach((g, i) => {
+    const fl = BABYLON.MeshBuilder.CreateSphere('fl', { diameter: .25 }, scene);
+    fl.parent = g; fl.position.z = i === 1 ? 1 : 1.15; fl.material = flashM; fl.isPickable = false; fl.setEnabled(false); g.flash = fl;
   });
 
-  // ---------- Blocky characters ----------
-  function blocky(parent, baseY, s, isBot) {
-    const body = mat(1, .14, .17); body.emissiveColor = new C3(.35, .04, .05);
-    const dark = mat(.12, .12, .16), cyan = neonMat(.1, .9, 1);
-    const ec = new C4(.35, 0, .05, 1);
+  // ---------- Roblox-style avatars ----------
+  function blocky(parent, baseY, t, isBot, shirt, pants) {
+    const rm = (r, g, b) => plain(r, g, b, .25, 40);
+    const skin = rm(.96, .8, .2), shirtM = rm(...shirt), pantsM = rm(...pants), dark = rm(.08, .08, .1), face = rm(.04, .04, .04);
     const P = (w, h, d, x, y, z, m, head) => {
-      const b = BABYLON.MeshBuilder.CreateBox('bp', { width: w * s, height: h * s, depth: d * s }, scene);
-      b.parent = parent; b.position.set(x * s, y * s + baseY, z * s); b.material = m; b.isPickable = isBot;
+      const b = BABYLON.MeshBuilder.CreateBox('bp', { width: w * t, height: h * t, depth: d * t }, scene);
+      b.parent = parent; b.position.set(x * t, y * t + baseY, z * t); b.material = m; b.isPickable = isBot;
       if (isBot) b.metadata = { bot: true, head: !!head };
-      shadowGen.addShadowCaster(b); b.enableEdgesRendering(); b.edgesWidth = 3; b.edgesColor = ec; return b;
+      shadowGen.addShadowCaster(b); return b;
     };
-    P(.4, .9, .4, -.25, .45, 0, body); P(.4, .9, .4, .25, .45, 0, body);      // legs
-    P(1, 1.2, .5, 0, 1.5, 0, body);                                           // torso
-    P(.6, .6, .6, 0, 2.4, 0, body, true);                                     // head
-    P(.25, .25, .9, -.55, 1.75, .45, body); P(.25, .25, .9, .55, 1.75, .45, body); // arms
-    P(.14, .2, 1.1, 0, 1.78, .85, dark); P(.1, .1, .5, 0, 1.78, 1.6, cyan);   // gun
+    P(1, 2, 1, -.5, 1, 0, pantsM); P(1, 2, 1, .5, 1, 0, pantsM);          // legs
+    P(2, 2, 1, 0, 3, 0, shirtM);                                          // torso
+    P(1.2, 1.2, 1.2, 0, 4.6, 0, skin, true);                              // head
+    P(.2, .2, .05, -.28, 4.7, .62, face, true); P(.2, .2, .05, .28, 4.7, .62, face, true); P(.5, .16, .05, 0, 4.35, .62, face, true);
+    P(.9, .9, 1.9, -1, 3.3, .9, skin); P(.9, .9, 1.9, 1, 3.3, .9, skin);  // arms forward
+    P(.35, .45, 2.2, 0, 3.6, 1.7, dark);                                  // gun
   }
 
   const hero = new BABYLON.TransformNode('hero', scene);
-  hero.position.set(0, 0, -24); blocky(hero, 0, .9, false);
+  hero.position.set(0, 0, -24); blocky(hero, 0, .45, false, [.95, .55, .15], [.2, .3, .7]);
 
   const bot = BABYLON.MeshBuilder.CreateBox('botc', { width: .9, height: 2, depth: .9 }, scene);
   bot.isVisible = false; bot.isPickable = false; bot.checkCollisions = true;
   bot.ellipsoid = new V3(.5, 1, .5);
-  blocky(bot, -1, .75, true);
+  blocky(bot, -1, .38, true, [.5, .3, .95], [.2, .2, .3]);
   bot.setEnabled(false);
 
   // ---------- State ----------
   const st = {
-    playing: false, roundActive: false, hp: 100, bhp: 100, w: 0, ammo: WEAPONS.map(w => w.mag),
+    playing: false, roundActive: false, hp: 100, bhp: 100, w: 0, ammo: WEAPONS.map(w => w.mag), res: WEAPONS.map(w => w.reserve),
     reloading: false, rid: 0, cd: 0, vy: 0, grounded: true, ps: 0, bs: 0, botCd: 1, strafeDir: 1, strafeT: 0,
-    botStuck: 0, ads: false, adsK: 0, kick: 0, rec: 0, bob: 0
+    botStuck: 0, ads: false, adsK: 0, kick: 0, rec: 0, bob: 0, moving: false, timeLeft: 90, timerId: null
   };
   const keys = {};
   let yaw = 0, pitch = 0, started = false, saved = null, mt = 0, hitT = 0;
 
-  // ---------- Audio (tiny synth) ----------
+  // ---------- Audio ----------
   let ac = null;
   function sfx(f1, f2, dur, type = 'square', vol = 0.08) {
     try {
@@ -301,20 +394,44 @@
   }
 
   // ---------- HUD ----------
-  $('weapons').innerHTML = WEAPONS.map((w, i) => `<div class="w" id="w${i}"><b>${i + 1}</b>${w.name}</div>`).join('');
+  $('weapons').innerHTML = WEAPONS.map((w, i) => `<div class="slot" id="w${i}">${i + 1} ${w.tag}</div>`).join('');
+  const fmtTime = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   function hud() {
     $('pbar').firstChild.style.width = Math.max(0, st.hp) + '%';
-    $('ebar').firstChild.style.width = Math.max(0, st.bhp) + '%';
-    $('ammo').textContent = st.reloading ? 'RELOADING' : st.ammo[st.w] + ' / ' + WEAPONS[st.w].mag;
-    $('score').textContent = `YOU ${st.ps} - ${st.bs} BOT`;
+    $('hpnum').textContent = Math.max(0, Math.ceil(st.hp));
+    $('sY').textContent = st.ps; $('sP').textContent = st.bs;
+    $('tt').textContent = fmtTime(Math.max(0, st.timeLeft));
+    const W = WEAPONS[st.w];
+    $('wname').textContent = W.name;
+    $('ammo').innerHTML = st.reloading ? '<span class="big">...</span>' : `<span class="big">${st.ammo[st.w]}</span><span class="small">${st.res[st.w]}</span>`;
     WEAPONS.forEach((w, i) => $('w' + i).classList.toggle('sel', i === st.w));
   }
-  function setHud(on) { $('hud').style.display = on ? 'block' : 'none'; }
-  function banner(txt, ms = 1600) { const b = $('banner'); b.textContent = txt; b.style.opacity = 1; setTimeout(() => b.style.opacity = 0, ms); }
-  function hurtFlash() { const h = $('hurt'); h.style.opacity = 1; setTimeout(() => h.style.opacity = 0, 120); }
+  const setHud = on => { $('hud').style.display = on ? 'block' : 'none'; };
+  function banner(big, ms = 1600, small = '', cls = '') {
+    const b = $('banner');
+    b.innerHTML = `<div class="bn ${cls}">${small ? `<small>${small}</small>` : ''}${big}</div>`;
+    b.style.opacity = 1; setTimeout(() => b.style.opacity = 0, ms);
+  }
+  const hurtFlash = () => { const h = $('hurt'); h.style.opacity = 1; setTimeout(() => h.style.opacity = 0, 120); };
   function hitMarker(head, kill) {
     const h = $('hit'); h.className = kill ? 'kill' : head ? 'head' : ''; h.style.opacity = 1;
     clearTimeout(hitT); hitT = setTimeout(() => h.style.opacity = 0, 130);
+  }
+  function feed(txt) {
+    const d = document.createElement('div'); d.textContent = txt; $('killfeed').prepend(d);
+    setTimeout(() => d.remove(), 4000);
+  }
+  function elim(html) {
+    const e = $('elim'); e.innerHTML = html; e.style.opacity = 1; setTimeout(() => e.style.opacity = 0, 2000);
+  }
+
+  function startTimer() {
+    clearInterval(st.timerId); st.timeLeft = 90;
+    st.timerId = setInterval(() => {
+      if (!st.roundActive) return;
+      st.timeLeft--; hud();
+      if (st.timeLeft <= 0) { st.timeLeft = 0; endRound(false, 'TIME UP'); }
+    }, 1000);
   }
 
   // ---------- Weapons ----------
@@ -325,7 +442,8 @@
   }
   VM.forEach((g, k) => g.setEnabled(k === 0));
 
-  const sparkM = neonMat(1, 1, 1);
+  const sparkM = new BABYLON.StandardMaterial('sm', scene);
+  sparkM.emissiveColor = new C3(1, 1, 1); sparkM.disableLighting = true;
   function spark(p) {
     const s = BABYLON.MeshBuilder.CreateBox('sp', { size: .15 }, scene);
     s.position.copyFrom(p); s.material = sparkM; s.isPickable = false; setTimeout(() => s.dispose(), 120);
@@ -363,7 +481,7 @@
     }
     if (total > 0) {
       st.bhp -= total;
-      if (st.bhp <= 0) { st.bhp = 0; hud(); hitMarker(head, true); sfx(600, 1200, .2, 'triangle', .08); endRound(true); return; }
+      if (st.bhp <= 0) { st.bhp = 0; hud(); hitMarker(head, true); sfx(600, 1200, .2, 'triangle', .08); feed('YOU  \u27A4  BOT'); elim('Eliminated <b>BOT</b>'); endRound(true); return; }
       hitMarker(head, false); sfx(900, 500, .06, 'sine', .06);
     }
     hud();
@@ -371,32 +489,38 @@
   }
   function reload() {
     const W = WEAPONS[st.w];
-    if (st.reloading || st.ammo[st.w] === W.mag || !st.roundActive) return;
+    if (st.reloading || st.ammo[st.w] === W.mag || st.res[st.w] <= 0 || !st.roundActive) return;
     st.reloading = true; hud();
     const id = ++st.rid, wi = st.w;
-    setTimeout(() => { if (id !== st.rid) return; st.ammo[wi] = W.mag; st.reloading = false; hud(); }, W.reload * 1000);
+    setTimeout(() => {
+      if (id !== st.rid) return;
+      const need = Math.min(W.mag - st.ammo[wi], st.res[wi]);
+      st.ammo[wi] += need; st.res[wi] -= need; st.reloading = false; hud();
+    }, W.reload * 1000);
   }
 
   // ---------- Round flow ----------
   function startRound() {
     st.hp = CFG.player.hp; st.bhp = CFG.bot.hp; st.vy = 0; st.botCd = 1.2; st.rec = 0; st.ads = false;
-    st.ammo = WEAPONS.map(w => w.mag); st.reloading = false; st.rid++;
+    st.ammo = WEAPONS.map(w => w.mag); st.res = WEAPONS.map(w => w.reserve);
+    st.reloading = false; st.rid++;
     cam.position.set((Math.random() - .5) * 6, CFG.player.eye + .01, -24);
     yaw = 0; pitch = 0;
     bot.position.set((Math.random() - .5) * 6, 1, 24);
-    st.roundActive = false; hud();
+    st.roundActive = false; startTimer(); hud();
     banner('GET READY', 1000);
     setTimeout(() => { st.roundActive = true; banner('FIGHT!', 700); }, 1200);
   }
-  function endRound(playerWon) {
+  function endRound(playerWon, reason) {
+    if (!st.roundActive) return;
     st.roundActive = false;
     if (playerWon) st.ps++; else st.bs++;
     hud();
     if (st.ps >= CFG.roundsToWin || st.bs >= CFG.roundsToWin) {
-      banner(playerWon ? 'YOU WIN THE MATCH!' : 'BOT WINS THE MATCH', 3000);
+      banner(playerWon ? 'VICTORY' : 'DEFEAT', 3000, 'MATCH', playerWon ? 'g' : 'r');
       setTimeout(() => { st.ps = 0; st.bs = 0; startRound(); }, 3200);
     } else {
-      banner(playerWon ? 'ROUND WON' : 'ROUND LOST', 1500);
+      if (reason) banner(reason, 1500, '', 'r'); else banner(playerWon ? 'WON' : 'LOST', 1500, 'ROUND', playerWon ? 'g' : 'r');
       setTimeout(startRound, 2000);
     }
   }
@@ -415,9 +539,7 @@
     if (st.playing) {
       if (!started) { started = true; startRound(); }
       else if (saved) cam.position.copyFrom(saved);
-    } else {
-      saved = cam.position.clone();
-    }
+    } else saved = cam.position.clone();
   });
   document.addEventListener('mousemove', e => {
     if (!st.playing) return;
@@ -453,10 +575,8 @@
 
   scene.onBeforeRenderObservable.add(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
-    floaters.forEach(f => { f.rotation.y += f._rs * dt; f.rotation.x += f._rs * .5 * dt; });
 
     if (!st.playing) {
-      // 3D home page: camera sways around the hero
       cam.cameraDirection.set(0, 0, 0);
       mt += dt; cam.fov = 0.95;
       const a = Math.sin(mt * 0.35) * 0.8 + 0.5;
@@ -472,11 +592,8 @@
     st.cd = Math.max(0, st.cd - dt);
     const W = WEAPONS[st.w];
     if (keys.fire && W.auto) shoot();
-
-    // recoil recovery
     if (st.rec > 0) { const back = Math.min(st.rec, st.rec * dt * 6 + 0.0005); pitch += back; st.rec -= back; }
 
-    // horizontal movement
     let mx = 0, mz = 0; st.moving = false;
     if (st.roundActive) {
       const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), r = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
@@ -489,7 +606,6 @@
       }
     }
 
-    // vertical: ground-follow (works on ramps) + jump + gravity
     const eye = CFG.player.eye;
     downRay.origin.copyFrom(cam.position); downRay.length = eye + 0.6;
     const gr = scene.pickWithRay(downRay, solidPick);
@@ -497,19 +613,17 @@
     if (gr.hit && st.vy <= 0 && cam.position.y - gr.pickedPoint.y <= eye + 0.3) {
       st.grounded = true; st.vy = 0;
       dy = Math.max(-0.6, Math.min(0.6, (gr.pickedPoint.y + eye + 0.01) - cam.position.y));
-    } else {
-      st.grounded = false; st.vy -= CFG.player.gravity * dt; dy = st.vy * dt;
-    }
+    } else { st.grounded = false; st.vy -= CFG.player.gravity * dt; dy = st.vy * dt; }
     if (st.roundActive && keys.Space && st.grounded) { st.vy = CFG.player.jump; st.grounded = false; dy = st.vy * dt; }
     cam.cameraDirection.set(mx, dy, mz);
+    if (cam.position.y < -6 && st.roundActive) { feed('YOU FELL'); endRound(false, 'YOU FELL'); }
 
-    // viewmodel animation + ADS zoom
     st.kick = Math.max(0, st.kick - dt * 8);
     st.bob += dt * (st.moving ? (keys.ShiftLeft ? 14 : 10) : 2);
     st.adsK += ((st.ads ? 1 : 0) - st.adsK) * Math.min(1, dt * 14);
     const bx = st.moving ? Math.sin(st.bob) * 0.012 : Math.sin(st.bob) * 0.002;
     const by = st.moving ? Math.abs(Math.cos(st.bob)) * 0.012 : Math.sin(st.bob) * 0.002;
-    vm.position.set(0.32 * (1 - st.adsK) + bx, -0.3 + 0.1 * st.adsK - by, 0.7 - st.kick * 0.15);
+    vm.position.set(0.34 * (1 - st.adsK) + bx, -0.32 + 0.12 * st.adsK - by, 0.75 - st.kick * 0.15);
     vm.rotation.x = -st.kick * 0.25;
     cam.fov += ((st.ads ? W.zoom : 1.2) - cam.fov) * Math.min(1, dt * 14);
     $('scope').style.display = (st.w === 2 && st.ads && st.adsK > 0.6) ? 'block' : 'none';
@@ -548,12 +662,10 @@
       if (st.botStuck > 0.25) { st.strafeDir *= -1; st.strafeT = 0.8; st.botStuck = 0; }
     } else st.botStuck = 0;
 
-    // follow ground / ramps
     const o = new V3(bot.position.x, bot.position.y + 0.5, bot.position.z);
     const gr = scene.pickWithRay(new BABYLON.Ray(o, new V3(0, -1, 0), 6), solidPick);
     if (gr.hit) bot.position.y += ((gr.pickedPoint.y + 1.0) - bot.position.y) * Math.min(1, dt * 12);
 
-    // shooting
     st.botCd -= dt;
     const eye2 = bot.position.add(new V3(0, 1.1, 0));
     if (st.botCd <= 0 && los && dist < 60) {
@@ -564,7 +676,7 @@
       sfx(200, 70, .07, 'square', .04);
       if (hitIt) {
         st.hp -= CFG.bot.damage; hurtFlash(); sfx(120, 60, .15, 'sawtooth', .1); hud();
-        if (st.hp <= 0) { st.hp = 0; hud(); endRound(false); }
+        if (st.hp <= 0) { st.hp = 0; hud(); feed('BOT  \u27A4  YOU'); elim('Eliminated by <b>BOT</b>'); endRound(false); }
       }
     }
   }
