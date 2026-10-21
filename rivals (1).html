@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Rivals</title>
+<title>Arena</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
@@ -106,8 +106,19 @@ html,body { height:100%; overflow:hidden; background:#000; font-family:'Segoe UI
 .panel button{background:#6a3df0;cursor:pointer;white-space:nowrap}
 .panel button:hover{background:#8355ff}
 .panel .row{display:flex;gap:8px}.panel .row input{flex:1}
-#mp-msg{font-weight:600;opacity:.85;line-height:1.4}
+
+.panel select{font:600 13px 'Segoe UI',sans-serif;padding:6px;border-radius:6px;background:#0d0a24;color:#fff;border:1px solid #6a3df0}
+.panel label{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.bar{height:8px;background:#0d0a24;border-radius:4px;overflow:hidden;margin:3px 0 8px}.bar i{display:block;height:100%;background:#ffd23f}
+#xhair::before,#xhair::after,#xhair i{background:var(--xc,#fff)!important}
+#modelbl{position:fixed;left:16px;top:30px;font-size:12px;font-weight:700;opacity:.85;text-shadow:0 1px 4px #000}
+.pop{position:fixed;left:50%;top:50%;font-weight:900;font-size:22px;color:#fff;pointer-events:none;text-shadow:0 2px 4px #000;animation:pop .7s forwards}
+.pop.h{color:#ff5050;font-size:28px}
+@keyframes pop{from{transform:translate(-50%,-30px)}to{transform:translate(-50%,-110px);opacity:0}}
+.lslot{width:54px;height:54px;font-size:18px}
 #mpstat{position:fixed;left:16px;top:12px;font-size:13px;font-weight:800;text-shadow:0 1px 4px #000}
+#mp-msg{font-weight:600;opacity:.85;line-height:1.4}
+#board{position:fixed;right:16px;top:80px;font-size:13px;font-weight:800;text-align:right;line-height:1.6;text-shadow:0 1px 4px #000}
 </style>
 </head>
 <body>
@@ -116,25 +127,33 @@ html,body { height:100%; overflow:hidden; background:#000; font-family:'Segoe UI
 <div id="lobby">
   <canvas id="lobby-canvas"></canvas>
   <div id="lobby-ui">
-    <div id="lobby-logo">RIVALS</div>
+    <div id="lobby-logo">ARENA</div>
     <div id="lobby-sub">FIRST PERSON SHOOTER</div>
     <button id="play-btn">▶  PLAY</button>
     <div id="lobby-nav">
-      <div class="lnav active">⚔ WEAPONS</div>
-      <div class="lnav">📋 TASKS</div>
-      <div class="lnav">🛒 SHOP</div>
-      <div class="lnav">🏆 CAREER</div>
+      <div class="lnav" data-t="w">⚔ WEAPONS</div>
+      <div class="lnav" data-t="t">📋 TASKS</div>
+      <div class="lnav" data-t="s">🛒 SHOP</div>
+      <div class="lnav" data-t="c">🏆 CAREER</div>
       <div class="lnav" data-t="mp">🌐 MULTIPLAYER</div>
       <div class="lnav" data-t="set">⚙ SETTINGS</div>
     </div>
     <div class="panel" data-t="mp">
-      <span>Online 1v1 via JSONBin: both players create a code, swap codes, press Connect, then PLAY.</span>
-      <input id="mp-key" type="password" placeholder="Your JSONBin X-Master-Key (free at jsonbin.io)">
-      <div class="row"><input id="mp-my" readonly placeholder="Your code (click to copy)"><button id="mp-make">Create code</button></div>
-      <div class="row"><input id="mp-opp" placeholder="Rival's code"><button id="mp-go">Connect</button><button id="mp-off">Solo</button></div>
-      <div id="mp-msg">Free JSONBin has a request cap, so a session lasts roughly 15-25 minutes.</div>
+      <span>Online free-for-all, up to 4 players (peer-to-peer). One player hosts and shares the 5-letter code; up to 3 others join with it. First to 10 kills wins, and you respawn after each death.</span>
+      <div class="row"><button id="mp-host">Host match</button><input id="mp-code" readonly placeholder="Your code appears here"></div>
+      <div class="row"><input id="mp-join" placeholder="Enter host's code" maxlength="5" style="text-transform:uppercase"><button id="mp-go">Join</button><button id="mp-off">Solo</button></div>
+      <div id="mp-msg">Then press PLAY.</div>
     </div>
-    <div class="panel" data-t="set"><label>Mouse sensitivity <input id="sens" type="range" min=".3" max="2.5" step=".1" value="1"></label></div>
+    <div class="panel" id="p-w" data-t="w"></div>
+    <div class="panel" id="p-t" data-t="t"></div>
+    <div class="panel" id="p-s" data-t="s"></div>
+    <div class="panel" id="p-c" data-t="c"></div>
+    <div class="panel" data-t="set">
+      <label>Mouse sensitivity <input id="sens" type="range" min=".3" max="2.5" step=".1" value="1"></label>
+      <label>Mode <select id="mode"><option value="duel">Duel (pick any weapon, first to 5)</option><option value="gun">Gun Game (weapon changes per kill)</option><option value="rng">Mirror RNG (random weapon each round)</option></select></label>
+      <label>Bot difficulty <select id="diff"><option value=".2">Easy</option><option value=".33" selected>Normal</option><option value=".5">Hard</option></select></label>
+      <label>Crosshair colour <input id="xc" type="color" value="#ffffff"></label>
+    </div>
     <div id="lobby-hint">Click PLAY then click to lock mouse · Esc to pause</div>
   </div>
 </div>
@@ -145,7 +164,7 @@ html,body { height:100%; overflow:hidden; background:#000; font-family:'Segoe UI
     <div id="ttimer"><small>TIME</small><span id="ttime">1:30</span></div>
     <div class="tscore" id="ts-bot"><div class="tdot">☠</div><span id="sb">0</span></div>
   </div>
-  <div id="mpstat"></div>
+  <div id="mpstat"></div><div id="board"></div><div id="modelbl"></div>
   <div id="kf"></div>
   <div id="elim"></div>
   <div id="hpbar-wrap">
@@ -170,6 +189,7 @@ html,body { height:100%; overflow:hidden; background:#000; font-family:'Segoe UI
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/babylonjs@6.49.0/babylon.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 (() => {
 const V3 = BABYLON.Vector3, C3 = BABYLON.Color3, C4 = BABYLON.Color4;
@@ -300,7 +320,7 @@ function wedge(x,z,w,h,d,ry,mk='w'){
   m.position.set(x,h/2,z); m.rotation.y=ry; m.material=M[mk]; m.refreshBoundingInfo(); solid(m); return m; }
 
 /* ── MAP ── */
-const S=60;
+const S=100;
 // floor
 const gnd=BABYLON.MeshBuilder.CreateGround('g',{width:S,height:S},scene);
 const gm=new BABYLON.StandardMaterial('gm',scene);
@@ -310,7 +330,7 @@ gm.specularColor=C3.Black(); gm.emissiveColor=new C3(.055,.055,.07);
 gnd.material=gm; gnd.receiveShadows=true; gnd.checkCollisions=true; gnd.metadata={solid:true};
 
 // island edge lips
-[[0,S/2-.5,S,1.4,1],[0,-S/2+.5,S,1.4,1],[S/2-.5,0,1,1.4,S],[-S/2+.5,0,1,1.4,S]].forEach(([x,z,w,h,d])=>block(x,z,w,h,d,'g'));
+[[0,S/2-1,S,26,2],[0,-S/2+1,S,26,2],[S/2-1,0,2,26,S],[-S/2+1,0,2,26,S]].forEach(([x,z,w,h,d])=>block(x,z,w,h,d,'g'));
 
 // centre raised block + 4 ramps
 block(0,0,12,3.2,12,'w');
@@ -326,7 +346,7 @@ wedge(-11,0,5,3.2,8,Math.PI/2); wedge(11,0,5,3.2,8,-Math.PI/2);
 });
 
 // side walls with tarps
-block(-24,-8,1,8,12,'w'); block(24,8,1,8,12,'w');
+block(-24,-8,1,12,16,'w'); block(24,8,1,12,16,'w');
 tarp(-23.4,-8,.14,5,9); tarp(23.4,8,.14,5,9);
 
 // cover
@@ -337,7 +357,10 @@ block(-14,-14,2,1,1,'org'); block(14,14,2,1,1,'org');
 
 // spawn pads
 function pad(z,col){ const p=BABYLON.MeshBuilder.CreateCylinder('pad',{diameter:5,height:.07},scene); p.position.set(0,.035,z); const m=new BABYLON.StandardMaterial('pm',scene); m.emissiveColor=new C3(...col); m.disableLighting=true; p.material=m; p.isPickable=false; }
-pad(-24,[.2,.9,1]); pad(24,[1,.3,.7]);
+pad(-36,[.2,.9,1]); pad(36,[1,.3,.7]);
+// outer-ring cover for bigger arena
+[[-36,-30,8,6,8],[36,30,8,6,8],[-36,30,8,6,8],[36,-30,8,6,8],[0,-32,14,3,2],[0,32,14,3,2],[-32,0,2,3,14],[32,0,2,3,14],
+ [-30,-14,5,3,2],[30,14,5,3,2],[-30,14,2,3,5],[30,-14,2,3,5],[-42,0,3,8,3],[42,0,3,8,3],[0,-42,3,8,3],[0,42,3,8,3]].forEach(([x,z,w,h,d],i)=>block(x,z,w,h,d,i%2?'l':'w'));
 
 /* ── CAMERA ── */
 const cam = new BABYLON.FreeCamera('cam', new V3(0,1.7,-24), scene);
@@ -383,7 +406,7 @@ const VM=[];
 const flashM=mkPlain(1,.85,.35,1,1); flashM.emissiveColor=new C3(1,.85,.35); flashM.disableLighting=true;
 VM.forEach((g,i)=>{ const f=BABYLON.MeshBuilder.CreateSphere('fl',{diameter:.22},scene); f.parent=g; f.position.z=i===1?1:1.1; f.material=flashM; f.isPickable=false; f.setEnabled(false); g.flash=f; });
 
-/* ── BOT (blocky Roblox-ish) ── */
+/* ── BOT ── */
 const bot=BABYLON.MeshBuilder.CreateBox('botb',{width:.9,height:2,depth:.9},scene);
 bot.isVisible=false; bot.isPickable=false; bot.checkCollisions=true; bot.ellipsoid=new V3(.5,1,.5);
 function limb(par,w,h,d,x,y,z,col,isBot,head){ const b=BABYLON.MeshBuilder.CreateBox('l',{width:w,height:h,depth:d},scene); b.parent=par; b.position.set(x,y,z); b.material=mkPlain(...col); b.isPickable=!!isBot; if(isBot) b.metadata={bot:true,head:!!head}; sg.addShadowCaster(b); return b; }
@@ -458,9 +481,9 @@ function hud(){
   if(G&&G.mag!=null) $('ammo-big').textContent=st.reloading?'…':st.ammo[st.gidx];
   else $('ammo-big').textContent='∞';
   $('ammo-res').textContent=G&&G.mag!=null?'/ '+st.res[st.gidx]:'';
-  [0,1,2,3].forEach(i=>$('ls'+i).classList.toggle('sel',i===st.slot));
+  drawLoadout();
 }
-function curGun(){ return st.slot===0?GUNS[st.gidx]:st.slot===1?SEC:null; }
+function curGun(){ return st.slot===0?GUNS[st.gidx]:null; }
 function setHud(on){ $('hud').style.display=on?'block':'none'; }
 function banner(big,ms=1600,small='',cls=''){
   const b=$('banner');
@@ -484,7 +507,7 @@ function startTimer(){
 
 /* ── WEAPON SWITCH ── */
 function setGun(i){
-  if(i===st.gidx&&st.slot===0)return;
+  if(LOCK||(i===st.gidx&&st.slot===0))return;
   st.slot=0; st.gidx=i; st.reloading=false; st.rid++; st.cd=.25;
   VM.forEach((g,k)=>g.setEnabled(k===i)); hud();
 }
@@ -508,24 +531,24 @@ function shoot(){
   if(st.slot===3){ grenade(); return; }
   const G=curGun(); if(!G)return;
   if(st.ammo[st.gidx]<=0)return reload();
-  st.ammo[st.gidx]--; MP.shots++; st.cd=G.delay; st.kick=1;
+  if(!G.inf)st.ammo[st.gidx]--; MP.sendShot(); STAT.shots++; st.cd=G.delay; st.kick=1;
   st.rec+=G.recoil; pitch-=G.recoil; yaw+=(Math.random()-.5)*G.recoil*.6;
   const gn=VM[st.gidx]; if(gn&&gn.flash){ gn.flash.setEnabled(true); setTimeout(()=>gn.flash.setEnabled(false),45); }
   if(st.gidx===0) sfx(260,60,.08,'sawtooth',.06); else if(st.gidx===1) sfx(140,40,.25,'sawtooth',.12); else sfx(90,30,.4,'square',.12);
   const spread=(st.ads?G.ads:G.hip)+(st.moving?.01:0);
   const fwd=cam.getDirection(V3.Forward()),right=cam.getDirection(V3.Right()),up=cam.getDirection(V3.Up());
   const muzzle=vm.getAbsolutePosition().add(fwd.scale(.9));
-  let tot=0,head=false;
+  let tot=0,head=false;const by={};
   for(let p=0;p<G.pellets;p++){
     const dir=fwd.add(right.scale((Math.random()-.5)*2*spread)).add(up.scale((Math.random()-.5)*2*spread)).normalize();
     const hit=scene.pickWithRay(new BABYLON.Ray(cam.position,dir,150),spk);
     const end=hit?.hit?hit.pickedPoint:cam.position.add(dir.scale(150));
     tracer(muzzle,end,new C3(1,.9,.4));
-    if(hit?.hit){ if(hit.pickedMesh.metadata?.bot){ const ih=!!hit.pickedMesh.metadata.head; if(ih)head=true; tot+=G.dmg*(ih?G.head:1); } else spark(hit.pickedPoint); }
+    if(hit?.hit){ if(hit.pickedMesh.metadata?.bot){ const ih=!!hit.pickedMesh.metadata.head; if(ih)head=true; const dm=G.dmg*(ih?G.head:1); tot+=dm; const q=hit.pickedMesh.metadata.pid; if(q!=null)by[q]=(by[q]||0)+dm; } else spark(hit.pickedPoint); }
   }
   if(tot>0){
-    st.bhp-=tot;
-    if(MP.on){MP.dealt+=tot;} else if(st.bhp<=0){st.bhp=0;hud();hitMark(head,true);sfx(600,1200,.2,'triangle',.08);kf('YOU → BOT  eliminated');elimMsg('Eliminated <b>BOT</b>');endRound(true);return;}
+    st.bhp-=tot; STAT.hit++; if(head)STAT.hs++; popup(Math.round(tot),head);
+    if(MP.on){for(const q in by)MP.hit(+q,by[q]);} else if(st.bhp<=0){st.bhp=0;hud();hitMark(head,true);sfx(600,1200,.2,'triangle',.08);kf('YOU → BOT  eliminated');elimMsg('Eliminated <b>BOT</b>');endRound(true);return;}
     hitMark(head,false); sfx(900,500,.06,'sine',.06);
   }
   hud();
@@ -544,16 +567,17 @@ function startRound(){
   st.hp=100;st.bhp=100;st.vy=0;st.botCd=1.2;st.rec=0;st.ads=false;
   st.ammo=GUNS.map(g=>g.mag);st.res=GUNS.map(g=>g.res);
   st.reloading=false;st.rid++;
-  const gz=MP.on&&MP.side===1?1:-1; cam.position.set((Math.random()-.5)*6,1.71,24*gz);yaw=gz>0?Math.PI:0;pitch=0;
-  bot.position.set((Math.random()-.5)*6,1,-24*gz);
+  const sp=MP.on?MP.spawn():[(Math.random()-.5)*6,-36,0]; cam.position.set(sp[0],1.71,sp[1]);yaw=sp[2];pitch=0;
+  bot.position.set((Math.random()-.5)*6,1,36); st.nades=2; modeApply();
   st.roundActive=false;startTimer();hud();
   banner('GET READY',1000);
   setTimeout(()=>{st.roundActive=true;banner('FIGHT!',700);},1200);
 }
 function endRound(pw,reason){
+  if(MP.on){ if(st.roundActive&&!pw&&reason!=='TIME UP')MP.die(null); return; }
   if(!st.roundActive)return; st.roundActive=false;
-  if(pw)st.ps++;else st.bs++; if(MP.on&&!pw&&reason!=='TIME UP')MP.deaths++; hud();
-  if(st.ps>=5||st.bs>=5){ banner(pw?'VICTORY':'DEFEAT',3000,'MATCH',pw?'g':'r'); setTimeout(()=>{st.ps=0;st.bs=0;startRound();},3200); }
+  if(pw){st.ps++;STAT.k++;STAT.keys++;STAT.xp+=50;}else{st.bs++;STAT.d++;} saveStat(); if(MP.on&&!pw&&reason!=='TIME UP')MP.send({t:'die'}); hud();
+  if(st.ps>=5||st.bs>=5){ matchEnd(pw); banner(pw?'VICTORY':'DEFEAT',3000,'MATCH',pw?'g':'r'); setTimeout(()=>{st.ps=0;st.bs=0;startRound();},3200); }
   else{ banner(reason||(pw?'WON':'LOST'),1500,'ROUND',pw?'g':'r'); setTimeout(startRound,2000); }
 }
 
@@ -565,7 +589,7 @@ document.addEventListener('pointerlockchange',()=>{
   $('lobby').style.display=st.playing?'none':'flex';
   setHud(st.playing);
   heroN.setEnabled(!st.playing);
-  bot.setEnabled(st.playing&&(!MP.on||MP.live));
+  bot.setEnabled(st.playing&&!MP.on);
   st.ads=false;keys.fire=false;
   if(st.playing){
     if(!started){started=true;startRound();}
@@ -584,100 +608,193 @@ document.addEventListener('mousemove',e=>{
 });
 document.addEventListener('mousedown',e=>{ if(!st.playing)return; if(e.button===0){keys.fire=true;shoot();} if(e.button===2)st.ads=true; });
 document.addEventListener('mouseup',e=>{ if(e.button===0)keys.fire=false; if(e.button===2)st.ads=false; });
-document.addEventListener('wheel',e=>{ if(!st.playing)return; setGun((st.gidx+(e.deltaY>0?1:2))%3); });
+document.addEventListener('wheel',e=>{ if(!st.playing)return; setGun((st.gidx+(e.deltaY>0?1:GUNS.length-1))%GUNS.length); });
 window.addEventListener('keydown',e=>{
   keys[e.code]=true; if(!st.playing)return;
   if(e.code==='KeyR')reload();
-  if(e.code==='Digit1')setGun(0);
-  if(e.code==='Digit2')setGun(1);
-  if(e.code==='Digit3')setGun(2);
+  if(/^Digit[1-5]$/.test(e.code))setGun(+e.code[5]-1);
+  
+  
   if(e.code==='KeyF'){setSlot(2);}
   if(e.code==='KeyQ'){setSlot(3);}
-  if(e.code==='Digit4')setSlot(st.slot===1?0:1);
+  
 });
 window.addEventListener('keyup',e=>{ keys[e.code]=false; if(e.code==='KeyF'||e.code==='KeyQ') setSlot(0); });
 window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 window.addEventListener('resize',()=>engine.resize());
 
-/* ── MULTIPLAYER (JSONBin) + EXTRAS ── */
+/* ── EXTRAS ── */
 let SENS=1;
-const API='https://api.jsonbin.io/v3/b';
-const MP={on:false,live:false,side:0,key:'',my:'',opp:'',dealt:0,deaths:0,shots:0,n:0,ln:-1,rx:0,seen:null,tgt:null,tw:0,tr:0,wb:false,rb:false,snap:true,
-  tick(dt){
-    if(!this.on){ $('mpstat').textContent=''; return; }
-    this.tw+=dt; this.tr+=dt;
-    if(this.tw>=.35&&!this.wb){ this.tw=0; this.send(); }
-    if(this.tr>=.35&&!this.rb){ this.tr=0; this.poll(); }
-    const ok=!!this.tgt&&Date.now()-this.rx<6000;
-    this.live=ok; bot.setEnabled(ok);
-    $('mpstat').textContent=ok?'● ONLINE  rival connected':'○ Waiting for rival…';
-    if(!ok){ this.snap=true; return; }
-    const o=this.tgt, ty=o.y-.71;
-    if(this.snap){ bot.position.set(o.x,ty,o.z); this.snap=false; }
-    const k=Math.min(1,dt*9);
-    bot.position.x+=(o.x-bot.position.x)*k; bot.position.y+=(ty-bot.position.y)*k; bot.position.z+=(o.z-bot.position.z)*k;
-    bot.rotation.y=o.yaw;
-  },
-  async send(){ this.wb=true;
-    try{ await fetch(API+'/'+this.my,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':this.key},
-      body:JSON.stringify({x:+cam.position.x.toFixed(2),y:+cam.position.y.toFixed(2),z:+cam.position.z.toFixed(2),yaw:+yaw.toFixed(3),p:+pitch.toFixed(3),
-        hp:st.hp,dealt:this.dealt,deaths:this.deaths,shots:this.shots,n:++this.n,rdy:1})}); }catch(e){}
-    this.wb=false; },
-  async poll(){ this.rb=true;
-    try{ const r=await fetch(API+'/'+this.opp+'/latest',{headers:{'X-Bin-Meta':'false'},cache:'no-store'}); const o=await r.json(); if(o&&o.rdy)this.apply(o); }catch(e){}
-    this.rb=false; },
-  apply(o){
-    if(!this.seen)this.seen={dealt:o.dealt,deaths:o.deaths,shots:o.shots};
-    const s=this.seen; this.tgt=o;
-    if(o.n!==this.ln){ this.ln=o.n; this.rx=Date.now(); }
-    if(o.dealt>s.dealt){ const d=o.dealt-s.dealt; s.dealt=o.dealt;
-      if(st.roundActive){ st.hp-=d; hurtFl(); sfx(120,60,.15,'sawtooth',.1);
-        if(st.hp<=0){ st.hp=0; kf('RIVAL → YOU  eliminated'); elimMsg('Eliminated by <b>RIVAL</b>'); endRound(false); }
-        hud(); } }
-    if(o.deaths>s.deaths){ s.deaths=o.deaths;
-      if(st.roundActive){ kf('YOU → RIVAL  eliminated'); elimMsg('Eliminated <b>RIVAL</b>'); endRound(true); } }
-    if(o.shots>s.shots){ s.shots=o.shots; const e=bot.position.add(new V3(0,.9,0));
-      tracer(e,e.add(new V3(Math.sin(o.yaw)*Math.cos(o.p),-Math.sin(o.p),Math.cos(o.yaw)*Math.cos(o.p)).scale(40)),new C3(1,.3,.3)); sfx(200,70,.07,'square',.04); }
-  }
-};
 const msg=t=>$('mp-msg').textContent=t;
-try{ $('mp-key').value=localStorage.getItem('rv_key')||''; }catch(_){}
-$('mp-my').onclick=e=>{ e.target.select(); try{ navigator.clipboard.writeText(e.target.value); msg('Code copied.'); }catch(_){} };
-$('mp-make').onclick=async()=>{
-  MP.key=$('mp-key').value.trim(); if(!MP.key)return msg('Paste your JSONBin master key first.');
-  msg('Creating your code…');
-  try{ const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-Master-Key':MP.key,'X-Bin-Private':'false','X-Bin-Name':'rivals-'+Date.now()},body:'{"rdy":0}'});
-    const j=await r.json(); if(!r.ok)throw new Error(j.message||r.status);
-    MP.my=j.metadata.id; $('mp-my').value=MP.my;
-    try{ localStorage.setItem('rv_key',MP.key); }catch(_){}
-    msg('Send your code to your rival, paste theirs below, then press Connect.');
-  }catch(e){ msg('JSONBin error: '+e.message); } };
-$('mp-go').onclick=()=>{
-  const o=$('mp-opp').value.trim();
-  if(!MP.my)return msg('Create your code first.');
-  if(o.length<10||o===MP.my)return msg('Paste your rival\'s code (not your own).');
-  Object.assign(MP,{opp:o,side:MP.my<o?0:1,on:true,seen:null,tgt:null,ln:-1,n:0,dealt:0,deaths:0,shots:0,snap:true});
-  st.ps=0; st.bs=0; started=false; msg('Ready. Press PLAY. The match starts when both players are in.'); };
-$('mp-off').onclick=()=>{ MP.on=false; MP.live=false; started=false; st.ps=0; st.bs=0; msg('Solo mode: you vs bot.'); };
+const SP=[[0,-40,0],[0,40,Math.PI],[-40,0,Math.PI/2],[40,0,-Math.PI/2]];
+const PCOL=[[.55,.3,.95],[.95,.3,.3],[.2,.8,.4],[.95,.8,.1]], PHEX=['#8c4dff','#f24d4d','#33cc66','#f2cc1a'];
+const MP={on:false,pid:0,side:0,peer:null,hostConn:null,conns:[],rem:new Map(),scores:{},dead:false,inv:0,acc:0,bt:0,
+  get remotes(){ return [...this.rem.values()]; },
+  send(m){ m.from=this.pid;
+    if(this.side===0){ if(m.to!=null){ const c=this.conns[m.to]; c&&c.open&&c.send(m); } else this.conns.forEach(c=>c&&c.open&&c.send(m)); }
+    else if(this.hostConn&&this.hostConn.open)this.hostConn.send(m); },
+  hit(pid,d){ if(pid!=null)this.send({t:'hit',to:pid,d}); },
+  sendShot(){ this.send({t:'shot',yaw:yaw,p:pitch}); },
+  enter(){ if(this.on)return; this.on=true; bot.setEnabled(false); this.scores={}; st.ps=0; st.bs=0; if(st.playing)startRound(); else started=false; },
+  hostSetup(c){ let pid=[1,2,3].find(i=>!this.conns[i]); if(!pid){ c.on('open',()=>c.close()); return; }
+    c.on('open',()=>{ this.conns[pid]=c; c.send({t:'welcome',pid,scores:this.scores,from:0}); this.enter(); msg('Player '+(pid+1)+' joined ('+(1+this.conns.filter(x=>x).length)+'/4).'); });
+    c.on('data',d=>{ d.from=pid;
+      if(d.to!=null&&d.to!==0){ const t=this.conns[d.to]; t&&t.open&&t.send(d); return; }
+      if(d.to==null)this.conns.forEach((x,i)=>{ if(x&&x.open&&i!==pid)x.send(d); });
+      this.recv(d); });
+    c.on('close',()=>{ this.conns[pid]=null; const m={t:'leave',pid}; this.send(m); this.recv(m); msg('Player '+(pid+1)+' left.'); }); },
+  clientSetup(c){ this.hostConn=c;
+    c.on('data',d=>this.recv(d));
+    c.on('close',()=>{ msg('Host disconnected.'); this.rem.forEach(a=>a.node.setEnabled(false)); }); },
+  get(pid){ let a=this.rem.get(pid);
+    if(!a){ const node=new BABYLON.TransformNode('rp'+pid,scene); const c=PCOL[pid%4];
+      avatar(node,-1,.42,true,[c[0],c[1],c[2],.05,30],[c[0]*.3,c[1]*.3,c[2]*.3,.05,20]);
+      node.getChildMeshes().forEach(m=>{ if(m.metadata?.bot)m.metadata.pid=pid; });
+      node.setEnabled(false); a={pid,node,tgt:null,rx:0,snap:true}; this.rem.set(pid,a); }
+    return a; },
+  recv(d){
+    if(d.t==='welcome'){ this.pid=d.pid; this.scores=d.scores||{}; this.enter(); msg('Connected as player '+(d.pid+1)+'. Press PLAY.'); }
+    else if(d.t==='s'){ const a=this.get(d.from); a.tgt=d; a.rx=Date.now(); }
+    else if(d.t==='hit'){ if(d.to!==this.pid||!st.roundActive||Date.now()<this.inv)return;
+      st.hp-=d.d; hurtFl(); sfx(120,60,.15,'sawtooth',.1); hud();
+      if(st.hp<=0){ st.hp=0; hud(); this.die(d.from); } }
+    else if(d.t==='k'){ this.kill(d.killer,d.victim); }
+    else if(d.t==='shot'){ const a=this.rem.get(d.from); if(!a||!a.node.isEnabled())return; const e=a.node.position.add(new V3(0,.9,0));
+      tracer(e,e.add(new V3(Math.sin(d.yaw)*Math.cos(d.p),-Math.sin(d.p),Math.cos(d.yaw)*Math.cos(d.p)).scale(60)),new C3(1,.3,.3)); sfx(200,70,.07,'square',.04); }
+    else if(d.t==='leave'){ const a=this.rem.get(d.pid); if(a){ a.node.dispose(); this.rem.delete(d.pid); } } },
+  nm(p){ return 'P'+(p+1)+(p===this.pid?' (you)':''); },
+  kill(killer,victim){
+    if(killer!=null)this.scores[killer]=(this.scores[killer]||0)+1;
+    kf((killer==null?'FELL':this.nm(killer))+' → '+this.nm(victim));
+    if(killer===this.pid){ elimMsg('Eliminated <b>'+this.nm(victim)+'</b>'); hitMark(false,true); STAT.k++; STAT.keys++; STAT.xp+=50; saveStat(); }
+    st.ps=this.scores[this.pid]||0; st.bs=Math.max(0,...Object.entries(this.scores).filter(([k])=>+k!==this.pid).map(([,v])=>v)); hud();
+    if(killer!=null&&this.scores[killer]>=10){ const w=killer===this.pid; if(w){ STAT.w++; STAT.keys+=5; STAT.xp+=200; saveStat(); }
+      banner(w?'VICTORY':this.nm(killer)+' WINS',3000,'MATCH',w?'g':'r'); setTimeout(()=>{ this.scores={}; st.ps=0; st.bs=0; hud(); },3000); } },
+  die(killer){ if(this.dead)return; this.dead=true; st.roundActive=false; STAT.d++; saveStat();
+    this.send({t:'k',killer,victim:this.pid}); this.kill(killer,this.pid); banner('ELIMINATED',1800,'','r');
+    setTimeout(()=>this.respawn(),2500); },
+  spawn(){ const act=this.remotes.filter(a=>a.node.isEnabled()); if(!act.length)return SP[this.pid%4];
+    let best=SP[0],bd=-1; SP.forEach(p=>{ const m=Math.min(...act.map(a=>Math.hypot(a.node.position.x-p[0],a.node.position.z-p[1]))); if(m>bd){bd=m;best=p;} }); return best; },
+  respawn(){ this.dead=false; st.hp=100; st.vy=0; st.ammo=GUNS.map(g=>g.mag); st.res=GUNS.map(g=>g.res); st.reloading=false; st.rid++; st.nades=2;
+    const sp=this.spawn(); cam.position.set(sp[0],1.71,sp[1]); yaw=sp[2]; pitch=0; modeApply(); this.inv=Date.now()+1500; st.roundActive=true; hud(); },
+  tick(dt){
+    if(!this.on){ $('mpstat').textContent=''; $('board').innerHTML=''; return; }
+    this.acc+=dt;
+    if(this.acc>=.05){ this.acc=0; this.send({t:'s',x:+cam.position.x.toFixed(2),y:+cam.position.y.toFixed(2),z:+cam.position.z.toFixed(2),yaw:+yaw.toFixed(3),a:this.dead?0:1}); }
+    let n=1; const k=Math.min(1,dt*14);
+    this.rem.forEach(a=>{ const o=a.tgt, ok=!!o&&o.a!==0&&Date.now()-a.rx<4000; a.node.setEnabled(ok);
+      if(Date.now()-a.rx<4000)n++; if(!ok){ a.snap=true; return; }
+      const ty=o.y-.71; if(a.snap){ a.node.position.set(o.x,ty,o.z); a.snap=false; }
+      a.node.position.x+=(o.x-a.node.position.x)*k; a.node.position.y+=(ty-a.node.position.y)*k; a.node.position.z+=(o.z-a.node.position.z)*k; a.node.rotation.y=o.yaw; });
+    $('mpstat').textContent='● ONLINE · '+n+'/4 players';
+    $('ttime').textContent='FFA';
+    this.bt-=dt; if(this.bt<=0){ this.bt=.5; const ids=[this.pid,...this.rem.keys()];
+      $('board').innerHTML=ids.sort((a,b)=>(this.scores[b]||0)-(this.scores[a]||0)).map(p=>`<div style="color:${PHEX[p%4]}">${this.nm(p)}  ${this.scores[p]||0}</div>`).join(''); } },
+  stop(){ this.on=false; this.dead=false; try{ this.conns.forEach(c=>c&&c.close()); this.hostConn&&this.hostConn.close(); this.peer&&this.peer.destroy(); }catch(_){}
+    this.conns=[]; this.hostConn=this.peer=null; this.rem.forEach(a=>a.node.dispose()); this.rem.clear(); this.pid=0; this.side=0; }
+};
+function mpReady(){ if(typeof Peer==='undefined'){ msg('PeerJS failed to load. Check your internet connection.'); return false; } MP.stop(); return true; }
+$('mp-host').onclick=()=>{ if(!mpReady())return;
+  const code=Math.random().toString(36).slice(2,7).toUpperCase();
+  MP.side=0; MP.pid=0; MP.peer=new Peer('arn-'+code);
+  MP.peer.on('open',()=>{ $('mp-code').value=code; msg('Share this code. Up to 3 players can join.'); });
+  MP.peer.on('connection',c=>MP.hostSetup(c));
+  MP.peer.on('error',e=>msg('Host error: '+e.type+' (try again)')); };
+$('mp-code').onclick=e=>{ e.target.select(); try{ navigator.clipboard.writeText(e.target.value); msg('Code copied.'); }catch(_){} };
+$('mp-go').onclick=()=>{ const code=$('mp-join').value.trim().toUpperCase();
+  if(code.length!==5)return msg('Enter the 5-letter code from the host.');
+  if(!mpReady())return;
+  msg('Connecting…'); MP.side=1; MP.peer=new Peer();
+  MP.peer.on('open',()=>MP.clientSetup(MP.peer.connect('arn-'+code)));
+  MP.peer.on('error',e=>msg(e.type==='peer-unavailable'?'No match with that code.':'Join error: '+e.type)); };
+$('mp-off').onclick=()=>{ MP.stop(); started=false; st.ps=0; st.bs=0; msg('Solo mode: you vs bot.'); };
 $('sens').oninput=e=>{ SENS=+e.target.value; };
 document.querySelectorAll('.lnav').forEach(n=>n.onclick=()=>{
   document.querySelectorAll('.lnav').forEach(x=>x.classList.toggle('active',x===n));
-  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.dataset.t===n.dataset.t)); });
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.dataset.t===n.dataset.t)); renderPanels(); });
 
-function dmgOpp(d){ st.bhp-=d; hud();
-  if(MP.on){ MP.dealt+=d; hitMark(false,false); }
+function dmgOpp(d,pid){ st.bhp-=d; hud();
+  if(MP.on){ MP.hit(pid,d); hitMark(false,false); }
   else if(st.bhp<=0){ kf('YOU → BOT  eliminated'); elimMsg('Eliminated <b>BOT</b>'); hitMark(false,true); endRound(true); }
   else hitMark(false,false); }
 function melee(){ st.cd=.5; sfx(180,80,.1,'sawtooth',.08);
   const r=scene.pickWithRay(new BABYLON.Ray(cam.position,cam.getDirection(V3.Forward()),3),spk);
-  if(r?.hit&&r.pickedMesh.metadata?.bot)dmgOpp(55); }
-function grenade(){ st.cd=3; sfx(300,200,.05,'sine',.05);
+  if(r?.hit&&r.pickedMesh.metadata?.bot)dmgOpp(55,r.pickedMesh.metadata.pid); }
+function grenade(){ if(!(st.nades>0)){st.cd=.3;return;} st.nades--; st.cd=3; sfx(300,200,.05,'sine',.05);
   const f=cam.getDirection(V3.Forward()), r=scene.pickWithRay(new BABYLON.Ray(cam.position,f,22),solidP);
   const p=r?.hit?r.pickedPoint.subtract(f.scale(.3)):cam.position.add(f.scale(22));
   const b=BABYLON.MeshBuilder.CreateSphere('gr',{diameter:.3},scene); b.position.copyFrom(p); b.material=flashM; b.isPickable=false;
   setTimeout(()=>{ sfx(80,20,.5,'sawtooth',.15); b.scaling.setAll(14);
-    if(BABYLON.Vector3.Distance(p,bot.position)<6&&bot.isEnabled())dmgOpp(70);
+    if(MP.on){ MP.remotes.forEach(a=>{ if(a.node.isEnabled()&&BABYLON.Vector3.Distance(p,a.node.position)<6)MP.hit(a.pid,70); }); }
+    else if(BABYLON.Vector3.Distance(p,bot.position)<6&&bot.isEnabled())dmgOpp(70);
     setTimeout(()=>b.dispose(),160); },1100); }
+
+/* ── UPGRADES: weapons, modes, career, shop, pads ── */
+let MODE='duel',LOCK=false,BOTAIM=.33,jumpN=0;
+GUNS.push(
+  {name:'Revolver',mag:6,res:36,dmg:42,head:2,delay:.45,reload:1.5,auto:false,pellets:1,hip:.03,ads:.004,recoil:.035,zoom:.9},
+  {name:'Energy Pistols',mag:999,res:0,inf:true,dmg:9,head:1.8,delay:.13,reload:0,auto:true,pellets:1,hip:.025,ads:.01,recoil:.004,zoom:1.0});
+function mkVM(parts,fz){
+  const g=new BABYLON.TransformNode('gx',scene); g.parent=vm;
+  parts.forEach(q=>GP(g,...q));
+  const f=BABYLON.MeshBuilder.CreateSphere('fl',{diameter:.22},scene); f.parent=g; f.position.z=fz; f.material=flashM; f.isPickable=false; f.setEnabled(false);
+  g.flash=f; g.setEnabled(false); return g; }
+VM.push(mkVM([[.1,.15,.4,0,0,0,[.8,.8,.88,.4,80]],[.06,.06,.42,0,.03,.4,[.3,.3,.36]],[.09,.2,.1,0,-.17,-.05,[.35,.2,.1]]],.8));
+VM.push(mkVM([[.08,.12,.42,-.14,0,0,[0,.9,1,.5,80]],[.08,.12,.42,.14,0,0,[0,.9,1,.5,80]],[.03,.03,.2,-.14,.02,.3,[1,1,1]],[.03,.03,.2,.14,.02,.3,[1,1,1]]],.8));
+
+/* persistent career stats */
+const STAT=Object.assign({shots:0,hit:0,hs:0,k:0,d:0,w:0,xp:0,keys:0,wrap:0,own:[0]},(()=>{ try{ return JSON.parse(localStorage.getItem('rv_stat')||'{}'); }catch(_){ return {}; } })());
+function saveStat(){ try{ localStorage.setItem('rv_stat',JSON.stringify(STAT)); }catch(_){} }
+const lvl=()=>Math.floor(STAT.xp/500)+1;
+function matchEnd(pw){ if(pw){ STAT.w++; STAT.keys+=5; STAT.xp+=200; } saveStat(); }
+function popup(n,head){ const d=document.createElement('div'); d.className='pop'+(head?' h':''); d.textContent=n; d.style.marginLeft=(Math.random()*80-40)+'px'; $('hud').appendChild(d); setTimeout(()=>d.remove(),700); }
+
+/* modes */
+function modeApply(){
+  LOCK=false; if(MODE==='duel')return;
+  const i=MODE==='gun'?Math.min(st.ps,GUNS.length-1):Math.floor(Math.random()*GUNS.length);
+  st.gidx=-1; setGun(i); LOCK=true; }
+$('mode').onchange=e=>{ MODE=e.target.value; st.ps=0; st.bs=0; started=false; };
+$('diff').onchange=e=>{ BOTAIM=+e.target.value; };
+$('xc').oninput=e=>document.documentElement.style.setProperty('--xc',e.target.value);
+
+/* loadout bar + labels */
+let _ld='';
+function drawLoadout(){
+  const k=st.gidx+':'+st.slot+':'+st.nades+':'+MODE+':'+STAT.keys;
+  if(k!==_ld){ _ld=k;
+    $('loadout').innerHTML=GUNS.map((g,i)=>`<div class="lslot ${st.slot===0&&st.gidx===i?'sel':''}">🔫<small>${i+1} ${g.name.split(' ')[0].toUpperCase()}</small></div>`).join('')
+      +`<div class="lslot ${st.slot===2?'sel':''}">🗡<small>F KNIFE</small></div><div class="lslot ${st.slot===3?'sel':''}">💣<small>Q ×${Math.max(0,st.nades|0)}</small></div>`;
+    $('modelbl').textContent=({duel:'DUEL',gun:'GUN GAME',rng:'MIRROR RNG'})[MODE]+'  ·  LV '+lvl()+'  ·  🔑 '+STAT.keys; }
+  const G=curGun(); if(G&&G.inf){ $('ammo-big').textContent='∞'; $('ammo-res').textContent=''; } }
+
+/* shop wraps */
+const WRAPS=[['Default',0,null],['Neon pink',10,[1,.2,.6]],['Gold',20,[1,.75,.1]],['Ice',30,[.3,.8,1]]];
+function applyWrap(){ const w=WRAPS[STAT.wrap]?.[2];
+  VM.forEach(g=>g.getChildMeshes().forEach(m=>{ if(m.material&&m.material.emissiveColor&&m!==g.flash) m.material.emissiveColor=w?new C3(w[0]*.35,w[1]*.35,w[2]*.35):C3.Black(); })); }
+$('p-s').onclick=e=>{ const i=e.target.dataset.i; if(i==null)return;
+  const w=WRAPS[i];
+  if(STAT.own.includes(+i)) STAT.wrap=+i;
+  else if(STAT.keys>=w[1]){ STAT.keys-=w[1]; STAT.own.push(+i); STAT.wrap=+i; }
+  saveStat(); applyWrap(); renderPanels(); };
+function renderPanels(){
+  $('p-w').innerHTML=GUNS.map((g,i)=>`<div><b>${i+1}. ${g.name}</b> · ${g.dmg}${g.pellets>1?'×'+g.pellets:''} dmg · mag ${g.inf?'∞':g.mag} · ${g.auto?'auto':'semi'}</div>`).join('')
+    +'<div style="opacity:.8">F knife 55 · Q grenade ×2 (70) · jump twice for a double jump · cyan pads launch you to the high ground · scroll to cycle</div>';
+  const bar=(n,v,t)=>`<div>${n} <span style="float:right">${Math.min(v,t)}/${t}</span><div class="bar"><i style="width:${Math.min(100,v/t*100)}%"></i></div></div>`;
+  $('p-t').innerHTML=bar('Get 25 kills',STAT.k,25)+bar('Land 15 headshots',STAT.hs,15)+bar('Win 3 matches',STAT.w,3)+bar('Reach level 5',lvl(),5);
+  const acc=STAT.shots?Math.round(STAT.hit/STAT.shots*100):0;
+  $('p-c').innerHTML=`<b>Level ${lvl()}</b> · ${STAT.xp%500}/500 XP<div class="bar"><i style="width:${STAT.xp%500/5}%"></i></div>Kills ${STAT.k} · Deaths ${STAT.d} · K/D ${(STAT.k/Math.max(1,STAT.d)).toFixed(2)}<br>Wins ${STAT.w} · Accuracy ${acc}% · Headshots ${STAT.hs}`;
+  $('p-s').innerHTML=`<div>🔑 ${STAT.keys} keys (1 per kill, 5 per win)</div>`+WRAPS.map((w,i)=>`<div class="row"><span style="flex:1;align-self:center">${w[0]}</span><button data-i="${i}">${STAT.own.includes(i)?(STAT.wrap===i?'Equipped':'Equip'):'Buy '+w[1]}</button></div>`).join(''); }
+
+/* jump pads + double jump */
+const PADS=[[6,-17],[-6,17],[-17,10],[17,-10]];
+PADS.forEach(([x,z])=>{ const q=BABYLON.MeshBuilder.CreateCylinder('jp',{diameter:2.2,height:.1},scene); q.position.set(x,.06,z);
+  const m=mkPlain(0,.9,1,0,1); m.emissiveColor=new C3(0,.8,1); m.disableLighting=true; q.material=m; q.isPickable=false; });
+function feat(dt){
+  if(st.grounded)jumpN=0; if(!st.roundActive)return;
+  PADS.forEach(([x,z])=>{ if(Math.hypot(cam.position.x-x,cam.position.z-z)<1.2&&cam.position.y<2.4&&st.vy<=0){ st.vy=15; st.grounded=false; sfx(300,900,.2,'sine',.08); } }); }
+window.addEventListener('keydown',e=>{ if(e.code==='Space'&&!e.repeat&&st.playing&&st.roundActive&&!st.grounded&&jumpN<1){ st.vy=8.5; jumpN++; sfx(400,700,.1,'sine',.05); } });
+applyWrap(); renderPanels();
 
 /* ── LOOP ── */
 const downRay=new BABYLON.Ray(V3.Zero(),new V3(0,-1,0),3);
@@ -728,7 +845,7 @@ scene.onBeforeRenderObservable.add(()=>{
   cam.fov+=((st.ads&&G?G.zoom:1.2)-cam.fov)*Math.min(1,dt*14);
   $('scope').style.display=(st.gidx===2&&st.ads&&st.adsK>.6)?'block':'none';
 
-  MP.tick(dt);
+  MP.tick(dt); feat(dt);
   // bot
   const toP=cam.position.subtract(bot.position);toP.y=0;
   const dist=toP.length();
@@ -752,7 +869,7 @@ scene.onBeforeRenderObservable.add(()=>{
     st.botCd-=dt;
     if(st.botCd<=0&&los&&dist<60){
       st.botCd=.55*(.7+Math.random()*.6);
-      const hit=Math.random()<.33;
+      const hit=Math.random()<BOTAIM;
       const aim=cam.position.add(hit?V3.Zero():new V3((Math.random()-.5)*3,(Math.random()-.5)*2,(Math.random()-.5)*3));
       tracer(eyeP,aim,new C3(1,.3,.3));
       sfx(200,70,.07,'square',.04);
