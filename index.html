@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Arena</title>
+<title>Arena + Inventory</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
@@ -119,6 +119,21 @@ html,body { height:100%; overflow:hidden; background:#000; font-family:'Segoe UI
 #mpstat{position:fixed;left:16px;top:12px;font-size:13px;font-weight:800;text-shadow:0 1px 4px #000}
 #mp-msg{font-weight:600;opacity:.85;line-height:1.4}
 #board{position:fixed;right:16px;top:80px;font-size:13px;font-weight:800;text-align:right;line-height:1.6;text-shadow:0 1px 4px #000}
+#lobby{overflow-y:auto}#lobby-ui{padding-bottom:40px}
+#lobby-logo{margin-top:20px;font-size:clamp(56px,9vw,120px)}#play-btn{margin-top:20px}#lobby-nav{margin-top:20px}
+.panel.wide{width:min(900px,94vw);max-height:46vh;overflow:auto}
+.panel .row button.on,.invl button.on{background:#ffd23f;color:#201040}
+.inv{display:flex;gap:12px;align-items:flex-start}.invl{width:190px;flex:none;display:flex;flex-direction:column;gap:4px;max-height:34vh;overflow:auto}
+.invl button{text-align:left}.invr{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.slots{display:flex;gap:8px;flex-wrap:wrap}.slot{background:#0d0a24;border:2px solid #3b2a80;border-radius:8px;padding:8px;min-width:130px;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.slot.on{border-color:#ffd23f}.slot small{opacity:.6;font-size:10px}.slot button{padding:2px 6px;font-size:11px;background:#c0392b}
+.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;max-height:20vh;overflow:auto}
+.it{background:#0d0a24;border:2px solid var(--rc);border-radius:8px;padding:8px;cursor:pointer;font-size:12px}.it i{display:block;font-style:normal;font-size:10px;color:var(--rc);margin-top:3px}.it.eq{box-shadow:0 0 0 3px #3ddc84}
+.maps{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.map{background:#0d0a24;border:3px solid transparent;border-radius:10px;padding:6px;cursor:pointer}.map.sel{border-color:#ffd23f}
+.map b{display:block;margin-top:5px}.map small{opacity:.6}.pv{height:70px;border-radius:6px;display:flex;align-items:flex-end;overflow:hidden}.pv i{flex:1;margin:0 1px}
+.reel{min-height:56px;display:flex;align-items:center;justify-content:center;background:#0d0a24;border-radius:8px;font-size:22px;font-weight:900;text-align:center;padding:6px}
+@media(max-width:700px){.inv{flex-direction:column}.invl{width:100%;flex-direction:row;flex-wrap:wrap;max-height:none}}
 </style>
 </head>
 <body>
@@ -131,9 +146,10 @@ html,body { height:100%; overflow:hidden; background:#000; font-family:'Segoe UI
     <div id="lobby-sub">FIRST PERSON SHOOTER</div>
     <button id="play-btn">▶  PLAY</button>
     <div id="lobby-nav">
-      <div class="lnav" data-t="w">⚔ WEAPONS</div>
+      <div class="lnav" data-t="w">🎒 LOADOUT</div>
+      <div class="lnav" data-t="m">🗺 MAPS</div>
       <div class="lnav" data-t="t">📋 TASKS</div>
-      <div class="lnav" data-t="s">🛒 SHOP</div>
+      <div class="lnav" data-t="s">📦 CRATES</div>
       <div class="lnav" data-t="c">🏆 CAREER</div>
       <div class="lnav" data-t="mp">🌐 MULTIPLAYER</div>
       <div class="lnav" data-t="set">⚙ SETTINGS</div>
@@ -144,9 +160,10 @@ html,body { height:100%; overflow:hidden; background:#000; font-family:'Segoe UI
       <div class="row"><input id="mp-join" placeholder="Enter host's code" maxlength="5" style="text-transform:uppercase"><button id="mp-go">Join</button><button id="mp-off">Solo</button></div>
       <div id="mp-msg">Then press PLAY.</div>
     </div>
-    <div class="panel" id="p-w" data-t="w"></div>
+    <div class="panel wide" id="p-w" data-t="w"></div>
+    <div class="panel wide" id="p-m" data-t="m"></div>
     <div class="panel" id="p-t" data-t="t"></div>
-    <div class="panel" id="p-s" data-t="s"></div>
+    <div class="panel wide" id="p-s" data-t="s"></div>
     <div class="panel" id="p-c" data-t="c"></div>
     <div class="panel" data-t="set">
       <label>Mouse sensitivity <input id="sens" type="range" min=".3" max="2.5" step=".1" value="1"></label>
@@ -543,7 +560,7 @@ function shoot(){
     const dir=fwd.add(right.scale((Math.random()-.5)*2*spread)).add(up.scale((Math.random()-.5)*2*spread)).normalize();
     const hit=scene.pickWithRay(new BABYLON.Ray(cam.position,dir,150),spk);
     const end=hit?.hit?hit.pickedPoint:cam.position.add(dir.scale(150));
-    tracer(muzzle,end,new C3(1,.9,.4));
+    tracer(muzzle,end,tcol(st.gidx));
     if(hit?.hit){ if(hit.pickedMesh.metadata?.bot){ const ih=!!hit.pickedMesh.metadata.head; if(ih)head=true; const dm=G.dmg*(ih?G.head:1); tot+=dm; const q=hit.pickedMesh.metadata.pid; if(q!=null)by[q]=(by[q]||0)+dm; } else spark(hit.pickedPoint); }
   }
   if(tot>0){
@@ -768,23 +785,164 @@ function drawLoadout(){
     $('modelbl').textContent=({duel:'DUEL',gun:'GUN GAME',rng:'MIRROR RNG'})[MODE]+'  ·  LV '+lvl()+'  ·  🔑 '+STAT.keys; }
   const G=curGun(); if(G&&G.inf){ $('ammo-big').textContent='∞'; $('ammo-res').textContent=''; } }
 
-/* shop wraps */
-const WRAPS=[['Default',0,null],['Neon pink',10,[1,.2,.6]],['Gold',20,[1,.75,.1]],['Ice',30,[.3,.8,1]]];
-function applyWrap(){ const w=WRAPS[STAT.wrap]?.[2];
-  VM.forEach(g=>g.getChildMeshes().forEach(m=>{ if(m.material&&m.material.emissiveColor&&m!==g.flash) m.material.emissiveColor=w?new C3(w[0]*.35,w[1]*.35,w[2]*.35):C3.Black(); })); }
-$('p-s').onclick=e=>{ const i=e.target.dataset.i; if(i==null)return;
-  const w=WRAPS[i];
-  if(STAT.own.includes(+i)) STAT.wrap=+i;
-  else if(STAT.keys>=w[1]){ STAT.keys-=w[1]; STAT.own.push(+i); STAT.wrap=+i; }
-  saveStat(); applyWrap(); renderPanels(); };
+/* ── INVENTORY (Roblox-style): full weapon list, maps, crates, wraps, skins, charms ── */
+const DBX={"weapons": {"Primary": ["Assault Rifle", "Bow", "Burst Rifle", "Crossbow", "Distortion", "Energy Rifle", "Flamethrower", "Gunblade", "Grenade Launcher", "Minigun", "Paintball Gun", "Permafrost", "RPG", "Shotgun", "Sniper", "Wildcat", "Scepter"], "Secondary": ["Daggers", "Energy Pistols", "Exogun", "Flare Gun", "Handgun", "Revolver", "Shorty", "Slingshot", "Spray", "Uzi", "Warper", "Glass Cannon"], "Melee": ["Battle Axe", "Chainsaw", "Fists", "Katana", "Knife", "Maul", "Riot Shield", "Scythe", "Spear", "Trowel", "Glast Shard"], "Utility": ["Elixir", "Flashbang", "Freeze Ray", "Grappler", "Grenade", "Jump Pad", "Medkit", "Molotov", "RNG Dice", "Satchel", "Smoke Grenade", "Subspace Tripmine", "Warpstone", "War Horn"]}, "exclusive": ["Scepter", "Glass Cannon", "Glast Shard", "Elixir", "RNG Dice"], "unverified": ["Wildcat"], "maps": {"Regular": ["Arena", "Backrooms", "Battleground", "Bridge", "Chess", "Construction", "Crossroads", "Dimension", "Docks", "Graveyard", "Iceberg", "Onyx", "Playground", "Splash", "Station", "Village"], "Big": ["Big Arena", "Big Backrooms", "Big Crossroads", "Big Graveyard", "Big Onyx", "Big Splash", "Big Station"], "Other": ["Factory", "Sandbox", "Legacy Backrooms", "Legacy Battleground", "Legacy Big Splash", "Legacy Crossroads", "Legacy Docks", "Legacy Onyx", "Legacy Splash", "Boss Arena", "Obby", "Spleef", "Baseplate", "Shooting Range", "Studio"]}, "wraps": {"Common": ["Beige", "Blue", "Bluesteel", "Blush", "Brown", "Cartoony Paint", "Cheese", "Cool", "Copper", "Crimson", "Cursed", "Frigid", "Glorious", "Green", "Gunmetal", "Haunted", "Highlighter", "Hot Cocoa", "Jean", "Lapis", "Lavish Crystal", "Lemon", "Lumber", "MaGGenta", "Maroon", "Mesa", "Midnight", "Mint", "Mustard", "Navy", "Noir", "Normal", "Olive", "Orange", "Ornate", "Pink", "Pink Lemonade", "Playful", "Purple", "Red", "Red Carpet", "Rust", "Salmon", "Sky", "Sleet", "Slush", "Spiral", "Stained", "Tawny", "Teal", "Titanium", "Tungsten", "Tusky", "Venom", "Vexed", "Violet", "Yellow", "Zombie"], "Rare": ["Ancient", "Antimatter", "Arbiter", "Arctic Camo", "Black", "Black Granite", "Bliss", "Brain", "Bunsen", "Cactus", "Carmine", "Carpet", "Celtic", "Cerulean", "Clamshell", "Clouds", "Cold Metal", "Cool Crochet", "Cork", "Crimson Art", "Crossed", "Dawn", "Desert Camo", "Digital Camo", "Dunes", "Eco", "Experience", "Facility", "Fiery", "Fire", "Forest Camo", "Frosted", "Galvanized", "Glisten", "Glossy", "Gold", "Grass", "Nova", "Obsidian", "Ocean Camo", "Patriot", "Plasma", "Portal", "Purple Goo", "Purpleize", "Regal", "Reptile", "Rug", "Rustic", "Scales", "Snowfall", "Spartan", "Steel", "Storm", "Street Camo", "Strobe", "Studded", "Studs", "Surge", "Swirls", "Tempest", "Termination", "TIX", "Toy", "Trophy", "Universal", "Urban Camo", "Vigor", "Vile", "Voltaic", "Waste", "Well Done", "White"], "Legendary": [".dll", ".exe", "2025 Wrapping", "2026 Wrapping", "A5", "Amber", "Arabesque", "Arena", "Aurora", "Aurum", "Beach", "Bee", "Birthday Wrapping", "Black Damascus", "Black Glass", "Black Opal", "Blaze", "Bombastic", "Bright", "Bubbles", "Candlelight", "Candy Apple", "Carbon Fiber", "Cardboard", "Cardinal", "Chrome", "Classic", "Clovers", "Crystallized", "Damascus", "Dark", "Dark Arena", "Devourer", "Diamond", "Disco", "Empress", "Encrypt", "Fame Stars", "Fire Horse", "Frankenstein", "Frostbite", "Geometric", "Gingerbread", "Glass", "Green Sparkle", "Greenflame", "Groove", "Hallow", "Heirloom", "Hesper", "Hologram", "Necromancer", "Omnisand", "Ornamented", "Paint", "Peppermint", "Peril", "Pixel Blight", "Plaid Pajama", "Plastic", "Popcorn", "Quartz", "Quasar", "Red Rubber", "Resolute", "Rift", "RIVALS Wrapping", "Scorched", "Scourge", "Serenity", "Shadow Halftone", "Shadow Ink", "Simulation", "Slime", "Spectral", "Starblaze"], "Mythical": ["Aegis", "Blizzard", "Borealis", "Celestial", "Crime Scene", "Dark Matter", "Encroached", "Festive Lights", "Fracture", "Heartfelt", "Ice Queen", "Neon Lights", "Orichalcum", "Paparazzi", "Polaris", "Solar", "Soulscourge", "Speed", "The Heights", "TV Error"], "Unique": ["1B Visits", "Beggar", "Brimstone", "Cream", "Community"]}, "charms": {"Common": ["2nd Birthday Cake", "Ancient Stool", "Armchair", "Bone", "Bowling Pin", "Cage", "Candy", "Candy Corn"]}, "skins": [["AK-47", "Assault Rifle", "Rare"], ["The Shred", null, "Legendary"], ["Compound Bow", "Bow", "Rare"], ["Pixel Crossbow", "Crossbow", "Rare"], ["Saber", null, "Legendary"], ["Sandwich", null, "Common"], ["Lasergun 3000", null, "Legendary"], ["Desert Eagle", null, "Rare"], ["Slime Gun", null, "Rare"], ["AUG", "Assault Rifle", "Rare"], ["Tommy Gun", null, "Rare"], ["Karambit", "Knife", "Legendary"], ["Boba Gun", null, "Common"], ["Mimic Axe", "Battle Axe", "Mythical"], ["Bat Bow", "Bow", "Legendary"], ["Frostbite Bow", "Bow", "Legendary"], ["Gingerbread AUG", "Assault Rifle", "Mythical"], ["Snowball Gun", null, "Common"], ["Candy Cane", null, "Common"]], "skinCases": ["Skin Case", "Skin Case 2", "Skin Case 3", "Summer Skin Case", "Spooky Skin Case", "Festive Skin Case"], "wrapBoxes": ["Wrap Box 1", "Wrap Box 2", "Wrap Box 3", "Festive Wrap Box", "Festive Wrap Box 2"], "charmCaps": ["Charm Capsule"]};
+const mid=n=>n.toLowerCase().replace(/[^0-9a-z]+/g,'_').replace(/^_+|_+$/g,'');
+const RAR=['Common','Rare','Legendary','Mythical','Unique'];
+const RCOL={Common:'#b0bac8',Rare:'#468cff',Legendary:'#ffb028',Mythical:'#eb466e',Unique:'#46e6c8'};
+const RW={Common:70,Rare:22,Legendary:6.5,Mythical:1.5,Unique:0}; // original placeholder odds
+const CATS=['Primary','Secondary','Melee','Utility'];
+const WL=[],WB={};
+CATS.forEach(c=>DBX.weapons[c].forEach(n=>{ const w={id:mid(n),name:n,cat:c,excl:DBX.exclusive.includes(n),unv:DBX.unverified.includes(n)}; WL.push(w); WB[w.id]=w; }));
+const ML=[]; Object.entries(DBX.maps).forEach(([g,l])=>l.forEach(n=>ML.push({id:mid(n),name:n,group:g})));
+const MB=Object.fromEntries(ML.map(m=>[m.id,m]));
+const REG={Wrap:[],Charm:[],Skin:[]};
+Object.entries(DBX.wraps).forEach(([r,l])=>l.forEach(n=>REG.Wrap.push({id:mid(n),name:n,rarity:r})));
+Object.entries(DBX.charms).forEach(([r,l])=>l.forEach(n=>REG.Charm.push({id:mid(n),name:n,rarity:r})));
+DBX.skins.forEach(([n,w,r])=>REG.Skin.push({id:mid(n),name:n,rarity:r,weapon:w?mid(w):null}));
+const RB={}; for(const k in REG) RB[k]=Object.fromEntries(REG[k].map(i=>[i.id,i]));
+const CR=[]; const addCr=(l,kind)=>l.forEach(n=>CR.push({id:mid(n),name:n,kind,price:10,pool:REG[kind]}));
+addCr(DBX.skinCases,'Skin'); addCr(DBX.wrapBoxes,'Wrap'); addCr(DBX.charmCaps,'Charm');
+const CRB=Object.fromEntries(CR.map(c=>[c.id,c]));
+const GUN_IDS=['assault_rifle','shotgun','sniper','revolver','energy_pistols']; // GUNS[i] -> database weapon
+const PLAYABLE=new Set([...GUN_IDS,'knife','grenade']);
+const skinFits=(s,w)=>s.weapon?s.weapon===w.id:w.cat!=='Utility';
+
+/* inventory save (localStorage) */
+let INV={skins:{},wraps:{},charms:{},loadouts:{},map:'arena',opened:0};
+const owns=(k,id)=>k==='Skin'?(INV.skins[id]||0)>0:!!INV[k.toLowerCase()+'s'][id];
+function saveInv(){ try{ localStorage.setItem('rv_inv',JSON.stringify(INV)); }catch(_){} }
+let firstTime=true;
+try{ const r=JSON.parse(localStorage.getItem('rv_inv')||'null');
+  if(r&&typeof r==='object'){ firstTime=false;
+    for(const k of ['Skin','Wrap','Charm']){ const f=k.toLowerCase()+'s'; for(const id in (r[f]||{})) if(RB[k][id]) INV[f][id]=k==='Skin'?Math.max(1,r[f][id]|0):true; }
+    for(const w in (r.loadouts||{})) if(WB[w]){ const o=r.loadouts[w]||{},c={};
+      if(o.skin&&owns('Skin',o.skin)&&skinFits(RB.Skin[o.skin],WB[w]))c.skin=o.skin; if(o.wrap&&owns('Wrap',o.wrap))c.wrap=o.wrap; if(o.charm&&owns('Charm',o.charm))c.charm=o.charm; INV.loadouts[w]=c; }
+    if(MB[r.map])INV.map=r.map; INV.opened=r.opened|0; } }catch(_){}
+if(firstTime){ STAT.keys+=30; saveStat(); saveInv(); } // welcome keys so you can open a few crates
+
+/* colours (original: colour words in names map to real colours, everything else gets a hash colour) */
+function hsv(h,s,v){ const f=n=>{const k=(n+h*6)%6;return v-v*s*Math.max(0,Math.min(k,4-k,1));}; return [f(5),f(3),f(1)]; }
+const CW={red:[.9,.1,.1],blue:[.15,.35,.95],green:[.1,.8,.3],pink:[1,.4,.7],gold:[1,.76,.1],black:[.04,.04,.05],white:[.95,.95,.95],yellow:[1,.9,.1],orange:[1,.5,.1],purple:[.55,.2,.9],teal:[.1,.7,.7],navy:[.05,.1,.4],mint:[.5,1,.7],lemon:[1,.95,.4],crimson:[.75,.05,.15],maroon:[.45,.05,.1],violet:[.6,.3,.95],sky:[.45,.75,1],brown:[.4,.25,.12],copper:[.8,.45,.25],olive:[.45,.5,.15],salmon:[1,.55,.5],beige:[.9,.82,.65],lapis:[.1,.25,.8],gunmetal:[.25,.28,.32],steel:[.6,.65,.7],chrome:[.85,.9,.95],cheese:[1,.8,.2],lumber:[.55,.35,.15],rust:[.6,.25,.1],fire:[1,.35,.05],ice:[.5,.9,1],slime:[.4,1,.2],blaze:[1,.4,.1],diamond:[.6,.95,1],gingerbread:[.65,.38,.18],peppermint:[1,.3,.4],candy:[1,.4,.75],bone:[.92,.9,.8],amber:[1,.65,.05],cardinal:[.8,.1,.2],cerulean:[.1,.5,.9],carmine:[.6,0,.15],cactus:[.2,.6,.25],forest:[.1,.4,.15],ocean:[.05,.35,.7],desert:[.8,.65,.4],arctic:[.85,.95,1]};
+function colorFor(name){ const w=name.toLowerCase().split(/[^a-z]+/).find(x=>CW[x]); if(w)return CW[w];
+  let a=0; for(const ch of name)a=(a*31+ch.charCodeAt(0))>>>0; return hsv((a%360)/360,.65,.95); }
+
+/* cosmetics on the viewmodel: wrap = paint, skin = accent plate + tracer colour, charm = dangling bauble */
+function applyCos(g,i){
+  const lo=INV.loadouts[GUN_IDS[i]]||{};
+  const wrap=lo.wrap&&RB.Wrap[lo.wrap], skin=lo.skin&&RB.Skin[lo.skin], charm=lo.charm&&RB.Charm[lo.charm];
+  g.getChildMeshes().forEach(m=>{ if(m===g.flash||m._cos||!m.material||!m.material.diffuseColor)return;
+    const mt=m.material; if(!mt._od){ mt._od=mt.diffuseColor.clone(); mt._oe=mt.emissiveColor.clone(); }
+    if(wrap){ const c=colorFor(wrap.name),r=RAR.indexOf(wrap.rarity);
+      mt.diffuseColor=new C3(mt._od.r*.2+c[0]*.8,mt._od.g*.2+c[1]*.8,mt._od.b*.2+c[2]*.8);
+      mt.emissiveColor=new C3(c[0]*(.15+.1*r),c[1]*(.15+.1*r),c[2]*(.15+.1*r)); }
+    else { mt.diffuseColor=mt._od.clone(); mt.emissiveColor=mt._oe.clone(); } });
+  (g._cosNodes||[]).forEach(n=>n.dispose()); g._cosNodes=[]; g._tc=null; g._charm=null;
+  if(skin){ const c=colorFor(skin.name); const b=GP(g,.05,.03,.5,0,.11,.3,[c[0],c[1],c[2],.5,60]); b._cos=true;
+    b.material.emissiveColor=new C3(c[0]*.7,c[1]*.7,c[2]*.7); g._cosNodes.push(b); g._tc=new C3(c[0],c[1],c[2]); }
+  if(charm){ const c=colorFor(charm.name); const s=BABYLON.MeshBuilder.CreateSphere('ch',{diameter:.07},scene);
+    s.parent=g; s.position.set(.09,-.24,.05); s._cos=true; s.isPickable=false; s.material=mkPlain(c[0],c[1],c[2],.6,40);
+    s.material.emissiveColor=new C3(c[0]*.5,c[1]*.5,c[2]*.5); g._cosNodes.push(s); g._charm=s; }
+}
+function applyWrap(){ VM.forEach((g,i)=>applyCos(g,i)); }
+const tcol=i=>(VM[i]&&VM[i]._tc)||new C3(1,.9,.4);
+scene.onBeforeRenderObservable.add(()=>{ const t=performance.now()/1000;
+  VM.forEach(g=>{ if(g._charm){ g._charm.position.x=.09+Math.sin(t*3)*.015; g._charm.position.y=-.24-Math.abs(Math.cos(t*3))*.01; } }); });
+
+/* maps: every map re-themes the arena (sky, fog, floor/wall tint). Layout is the single Arena layout. */
+function mapHue(m){ let a=0; for(const ch of m.name)a=(a*31+ch.charCodeAt(0))>>>0; return (a%360)/360; }
+const mapDark=m=>/Graveyard|Onyx|Dimension|Station|Backrooms/.test(m.name);
+function applyMap(){
+  const m=MB[INV.map]||ML[0], hue=mapHue(m), dark=mapDark(m), plain=m.id==='arena';
+  const sky=plain?[.84,.88,.96]:hsv(hue,dark?.5:.28,dark?.28:.97);
+  scene.clearColor=new C4(sky[0],sky[1],sky[2],1); scene.fogColor=new C3(sky[0],sky[1],sky[2]);
+  scene.fogDensity=(m.group==='Big'?.0028:.004)*(dark?1.8:1);
+  const t=plain?[1,1,1]:hsv(hue,dark?.35:.22,dark?.6:1);
+  [M.w,M.g,M.l,gm].forEach(x=>{ x.diffuseColor=new C3(t[0],t[1],t[2]); });
+  const lv=plain?1:dark?.25:1, ec=plain?[0,0,0]:hsv(hue,.8,dark?.12:.22);
+  skyM.emissiveTexture.level=lv; skyM.emissiveColor=new C3(ec[0],ec[1],ec[2]);
+  seaM.emissiveTexture.level=lv; seaM.emissiveColor=new C3(ec[0]*.5,ec[1]*.5,ec[2]*.5);
+  hemi.intensity=dark?.5:.75;
+}
+
+/* crates (server-style roll: pick rarity by weight, then uniform item) */
+function chances(pool){ const b={}; pool.forEach(i=>{ if(RW[i.rarity]>0)(b[i.rarity]=b[i.rarity]||[]).push(i); });
+  let t=0; for(const r in b)t+=RW[r]; const out={}; for(const r in b)out[r]=RW[r]/t*100; return {b,t,out}; }
+function rollPool(pool){ const {b,t}=chances(pool); let x=Math.random()*t;
+  for(const r of RAR){ if(!b[r])continue; x-=RW[r]; if(x<=0)return b[r][Math.floor(Math.random()*b[r].length)]; }
+  const l=RAR.filter(r=>b[r]).pop(); return b[l][0]; }
+function equip(wid,slot,id){ // validates everything before touching state
+  const w=WB[wid]; if(!w||!['Skin','Wrap','Charm'].includes(slot))return false;
+  const it=RB[slot][id]; if(!it||!owns(slot,id))return false; if(slot==='Skin'&&!skinFits(it,w))return false;
+  INV.loadouts[wid]=Object.assign(INV.loadouts[wid]||{},{[slot.toLowerCase()]:id}); saveInv(); applyWrap(); return true; }
+
+/* UI */
+let LD={cat:'Primary',w:'assault_rifle',slot:'Skin'}, MG=(MB[INV.map]||ML[0]).group, CS=CR[0].id, CRES=null, CBUSY=false;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderLoadout(){
+  const w=WB[LD.w], lo=INV.loadouts[w.id]||{}, gi=GUN_IDS.indexOf(w.id), G=gi>=0?GUNS[gi]:null;
+  const cats=CATS.map(c=>`<button data-a="cat" data-v="${c}" class="${c===LD.cat?'on':''}">${c}</button>`).join('');
+  const list=WL.filter(x=>x.cat===LD.cat).map(x=>`<button data-a="w" data-v="${x.id}" class="${x.id===LD.w?'on':''}">${esc(x.name)}${x.excl?' *':''}${PLAYABLE.has(x.id)?' ✔':''}</button>`).join('');
+  const slots=['Skin','Wrap','Charm'].map(s=>{ const id=lo[s.toLowerCase()], it=id&&RB[s][id];
+    return `<div class="slot ${s===LD.slot?'on':''}" data-a="slot" data-v="${s}"><small>${s.toUpperCase()}</small><b style="color:${it?RCOL[it.rarity]:'#fff'}">${it?esc(it.name):'None'}</b>${it?`<button data-a="un" data-v="${s}">Unequip</button>`:''}</div>`; }).join('');
+  const items=REG[LD.slot].filter(i=>owns(LD.slot,i.id)&&(LD.slot!=='Skin'||skinFits(i,w))).sort((a,b)=>RAR.indexOf(b.rarity)-RAR.indexOf(a.rarity)||a.name.localeCompare(b.name));
+  const grid=items.length?items.map(i=>{ const eq=lo[LD.slot.toLowerCase()]===i.id; return `<div class="it ${eq?'eq':''}" data-a="eq" data-v="${i.id}" style="--rc:${RCOL[i.rarity]}">${esc(i.name)}${LD.slot==='Skin'&&INV.skins[i.id]>1?' ×'+INV.skins[i.id]:''}<i>${eq?'EQUIPPED ✓':i.rarity}</i></div>`; }).join('')
+    :`<div style="opacity:.7">No ${LD.slot.toLowerCase()}s owned${LD.slot==='Skin'?' for this weapon':''} yet. Open crates (🔑 ${STAT.keys}).</div>`;
+  const info=G?`${G.dmg}${G.pellets>1?'×'+G.pellets:''} dmg · mag ${G.inf?'∞':G.mag} · ${G.auto?'auto':'semi'} · <b style="color:#7dff8a">PLAYABLE (key ${gi+1})</b>`
+    :PLAYABLE.has(w.id)?'<b style="color:#7dff8a">PLAYABLE (knife F / grenade Q)</b>':'<span style="opacity:.7">Collectible: not playable in this build yet</span>';
+  $('p-w').innerHTML=`<div class="row" style="flex-wrap:wrap">${cats}</div><div class="inv"><div class="invl">${list}</div><div class="invr">
+    <div style="font-size:18px">${esc(w.name)} <small style="opacity:.7">${w.cat}${w.excl?' · mode-exclusive':''}${w.unv?' · name unverified':''}</small></div><div>${info}</div>
+    <div class="slots">${slots}</div><div class="igrid">${grid}</div></div></div>
+    <div style="opacity:.75;font-size:12px">✔ playable · * mode-exclusive · F knife 55 · Q grenade ×2 (70) · double jump · cyan pads launch you · scroll to cycle. Skins/wraps/charms show on the gun in your hands.</div>`;
+}
+function mapPv(m){ let a=mapHue(m)*1000|0; const r=()=>(a=(a*1664525+1013904223)>>>0)/4294967296, hue=mapHue(m)*360, d=mapDark(m);
+  const n=m.group==='Big'?9:6; let bars=''; for(let i=0;i<n;i++)bars+=`<i style="height:${20+r()*50}%;background:hsl(${hue} 50% ${8+(i%3)*5}%)"></i>`;
+  return `<div class="pv" style="background:linear-gradient(180deg,hsl(${hue} 70% ${d?25:65}%),hsl(${(hue+30)%360} 70% ${d?10:25}%))">${bars}</div>`; }
+function renderMaps(){
+  const f=['Regular','Big','Other'].map(g=>`<button data-a="mg" data-v="${g}" class="${g===MG?'on':''}">${g==='Other'?'Legacy / Special':g+' Maps'}</button>`).join('');
+  const cards=ML.filter(m=>m.group===MG).map(m=>`<div class="map ${m.id===INV.map?'sel':''}" data-a="map" data-v="${m.id}">${mapPv(m)}<b>${esc(m.name)}</b><small>${m.id===INV.map?'✓ SELECTED':'click to pick'}</small></div>`).join('');
+  $('p-m').innerHTML=`<div class="row" style="flex-wrap:wrap">${f}</div><div class="maps">${cards}</div><div style="opacity:.75;font-size:12px">Maps re-theme the arena (sky, fog, colours). All use the one Arena layout for now. Applies when you press PLAY.</div>`;
+}
+function renderCrates(){
+  const c=CRB[CS], {out}=chances(c.pool);
+  const list=CR.map(x=>`<button data-a="crate" data-v="${x.id}" class="${x.id===CS?'on':''}">${esc(x.name)}</button>`).join('');
+  const odds=RAR.filter(r=>out[r]).map(r=>`<span style="color:${RCOL[r]};margin-right:12px">${r} ${out[r].toFixed(1)}%</span>`).join('');
+  const res=CRES?(CRES.err?`<span style="color:#ff6a4a">${esc(CRES.err)}</span>`:`<span style="color:${RCOL[CRES.item.rarity]};font-size:20px">${esc(CRES.item.name)} · ${CRES.item.rarity}${CRES.dup?' (duplicate)':' (new!)'}</span>`):'';
+  $('p-s').innerHTML=`<div>🔑 ${STAT.keys} keys (1 per kill, 5 per win) · crates opened: ${INV.opened}</div><div class="inv"><div class="invl">${list}</div><div class="invr">
+    <div style="font-size:18px">${esc(c.name)} <small style="opacity:.7">${c.kind} · ${c.price} keys</small></div><div>${odds}</div>
+    <div class="reel" id="reel">${res||'❓'}</div><button data-a="open" ${CBUSY?'disabled':''}>${CBUSY?'Opening…':'Open ('+c.price+' 🔑)'}</button>
+    <div style="opacity:.7;font-size:12px">Placeholder odds/prices. Each crate type draws from all of its item type.</div></div></div>`;
+}
+function openCrate(){
+  if(CBUSY)return; const c=CRB[CS]; if(!c)return;
+  if(STAT.keys<c.price){ CRES={err:'Not enough keys! Win rounds to earn more.'}; return renderCrates(); }
+  STAT.keys-=c.price; const item=rollPool(c.pool); const dup=c.kind==='Skin'?false:owns(c.kind,item.id);
+  if(c.kind==='Skin')INV.skins[item.id]=(INV.skins[item.id]||0)+1; else INV[c.kind.toLowerCase()+'s'][item.id]=true;
+  INV.opened++; saveStat(); saveInv(); CBUSY=true; CRES=null; renderCrates(); hud();
+  let i=0; const tick=()=>{ const el=document.getElementById('reel');
+    if(i<16){ const p=c.pool[Math.floor(Math.random()*c.pool.length)]; if(el){el.textContent=p.name;el.style.color=RCOL[p.rarity];} sfx(300+i*35,300+i*35,.04,'square',.03); i++; setTimeout(tick,40+i*i*.7); }
+    else { CBUSY=false; CRES={item,dup}; sfx(500+RAR.indexOf(item.rarity)*200,1200,.3,'triangle',.07); applyWrap(); renderPanels(); hud(); } };
+  tick();
+}
+function invClick(e){ const t=e.target.closest('[data-a]'); if(!t||t.disabled)return; const a=t.dataset.a, v=t.dataset.v;
+  if(a==='cat'){ LD.cat=v; if(WB[LD.w].cat!==v)LD.w=WL.find(x=>x.cat===v).id; }
+  else if(a==='w'&&WB[v])LD.w=v; else if(a==='slot'&&REG[v])LD.slot=v;
+  else if(a==='un'&&REG[v]){ if(INV.loadouts[LD.w])delete INV.loadouts[LD.w][v.toLowerCase()]; saveInv(); applyWrap(); }
+  else if(a==='eq'){ if(equip(LD.w,LD.slot,v))sfx(660,880,.08,'sine',.05); }
+  else if(a==='mg')MG=v;
+  else if(a==='map'&&MB[v]){ INV.map=v; saveInv(); applyMap(); sfx(520,700,.08,'sine',.05); }
+  else if(a==='crate'&&CRB[v]){ if(CBUSY)return; CS=v; CRES=null; }
+  else if(a==='open')return openCrate();
+  renderPanels(); }
+['p-w','p-m','p-s'].forEach(id=>$(id).addEventListener('click',invClick));
+
 function renderPanels(){
-  $('p-w').innerHTML=GUNS.map((g,i)=>`<div><b>${i+1}. ${g.name}</b> · ${g.dmg}${g.pellets>1?'×'+g.pellets:''} dmg · mag ${g.inf?'∞':g.mag} · ${g.auto?'auto':'semi'}</div>`).join('')
-    +'<div style="opacity:.8">F knife 55 · Q grenade ×2 (70) · jump twice for a double jump · cyan pads launch you to the high ground · scroll to cycle</div>';
+  renderLoadout(); renderMaps();
   const bar=(n,v,t)=>`<div>${n} <span style="float:right">${Math.min(v,t)}/${t}</span><div class="bar"><i style="width:${Math.min(100,v/t*100)}%"></i></div></div>`;
   $('p-t').innerHTML=bar('Get 25 kills',STAT.k,25)+bar('Land 15 headshots',STAT.hs,15)+bar('Win 3 matches',STAT.w,3)+bar('Reach level 5',lvl(),5);
   const acc=STAT.shots?Math.round(STAT.hit/STAT.shots*100):0;
   $('p-c').innerHTML=`<b>Level ${lvl()}</b> · ${STAT.xp%500}/500 XP<div class="bar"><i style="width:${STAT.xp%500/5}%"></i></div>Kills ${STAT.k} · Deaths ${STAT.d} · K/D ${(STAT.k/Math.max(1,STAT.d)).toFixed(2)}<br>Wins ${STAT.w} · Accuracy ${acc}% · Headshots ${STAT.hs}`;
-  $('p-s').innerHTML=`<div>🔑 ${STAT.keys} keys (1 per kill, 5 per win)</div>`+WRAPS.map((w,i)=>`<div class="row"><span style="flex:1;align-self:center">${w[0]}</span><button data-i="${i}">${STAT.own.includes(i)?(STAT.wrap===i?'Equipped':'Equip'):'Buy '+w[1]}</button></div>`).join(''); }
+  renderCrates(); }
 
 /* jump pads + double jump */
 const PADS=[[6,-17],[-6,17],[-17,10],[17,-10]];
@@ -794,7 +952,7 @@ function feat(dt){
   if(st.grounded)jumpN=0; if(!st.roundActive)return;
   PADS.forEach(([x,z])=>{ if(Math.hypot(cam.position.x-x,cam.position.z-z)<1.2&&cam.position.y<2.4&&st.vy<=0){ st.vy=15; st.grounded=false; sfx(300,900,.2,'sine',.08); } }); }
 window.addEventListener('keydown',e=>{ if(e.code==='Space'&&!e.repeat&&st.playing&&st.roundActive&&!st.grounded&&jumpN<1){ st.vy=8.5; jumpN++; sfx(400,700,.1,'sine',.05); } });
-applyWrap(); renderPanels();
+applyWrap(); applyMap(); renderPanels();
 
 /* ── LOOP ── */
 const downRay=new BABYLON.Ray(V3.Zero(),new V3(0,-1,0),3);
